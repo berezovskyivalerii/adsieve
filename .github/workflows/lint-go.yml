@@ -1,0 +1,14 @@
+name: lint-go # название
+on: [push, pull_request] # запускается при push и pull request
+
+jobs: # запускающиеся процессы
+  lint: # процесс lint
+    runs-on: ubuntu-latest # запускается с помощью ubuntu-latest
+    steps: # шаги выполнения
+      - uses: actions/checkout@v4 # шаг, делает иходники видимыми для последующих шагов
+      - uses: actions/setup-go@v5 # гарантирует, что workflow использует нужную версию языка
+        with: { go-version: '1.22' }
+      - uses: golangci/golangci-lint-action@v5 # загружает последенюю сборку golangci-lint. Проверяет все пакеты в репо и прерыватся по истечению 5 минут
+        with:
+          version: latest
+          args: --timeout=5m ./...

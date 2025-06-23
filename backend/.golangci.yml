@@ -1,0 +1,35 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - govet        # встроенный анализатор Go
+    - revive       # стиль + потенциальные баги
+    - errcheck     # потерянные ошибки
+    - staticcheck  # "умный" анализ кода
+    - gosimple     # упрощения
+    - sqlclosecheck # закрытие rows.Result
+    - goimports
+    - depguard     # запрет «грязных» импортов
+  disable:
+    - dupl         # слишком шумит на генераторах
+
+linters-settings:
+  revive:
+    confidence: 0.8
+    rules:
+      - name: var-naming            # Id, HTTP, UUID → CamelCase
+      - name: error-naming
+      - name: indent-error-flow
+      - name: error-return
+  depguard:
+    list-type: blacklist
+    packages:
+      - "fmt"   # запрещаем `fmt.Println` в рабочем коде
+    packages-with-error-message:
+      "fmt": "use zap.SugaredLogger instead of fmt"
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

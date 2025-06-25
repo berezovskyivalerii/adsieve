@@ -11,4 +11,5 @@ jobs: # запускающиеся процессы
       - uses: golangci/golangci-lint-action@v5 # загружает последенюю сборку golangci-lint. Проверяет все пакеты в репо и прерыватся по истечению 5 минут
         with:
           version: latest
+          working-directory: backend
           args: --timeout=5m ./...

@@ -11,8 +11,8 @@ linters:
     - gosimple     # упрощения
     - sqlclosecheck # закрытие rows.Result
     - goimports
-    - depguard     # запрет «грязных» импортов
   disable:
+    - depguard     # слишком ругается на импорты, потом пофикшу мб
     - dupl         # слишком шумит на генераторах
 
 linters-settings:

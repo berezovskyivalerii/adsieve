@@ -25,10 +25,16 @@ linters-settings:
       - name: error-return
   depguard:
     list-type: blacklist
+    include-go-root: false
     packages:
-      - "fmt"   # запрещаем `fmt.Println` в рабочем коде
+      - "fmt"
     packages-with-error-message:
       "fmt": "use zap.SugaredLogger instead of fmt"
+    packages-allow:
+      - golang.org/x/crypto/bcrypt
+      - github.com/go-playground/validator/v10
+      - github.com/lib/pq
+      - github.com/gin-gonic/gin
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0

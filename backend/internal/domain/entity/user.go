@@ -15,7 +15,7 @@ type User struct {
 	ID         int64     `json:"id" db:"id"`
 	Email      string    `json:"email" db:"email"`
 	PassHash   string    `json:"pass_hash" db:"pass_hash"`
-	Created_at time.Time `json:"created_at" db:"created_at"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 type SignInput struct {

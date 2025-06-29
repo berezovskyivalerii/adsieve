@@ -16,9 +16,6 @@ type UserRepo struct {
 
 func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{db: db} }
 
-// -----------------------------------------------------------------------------
-// CreateUser — INSERT + RETURNING, без sqlx, на чистом database/sql
-// -----------------------------------------------------------------------------
 func (r *UserRepo) CreateUser(ctx context.Context, u entity.User) (int64, error) {
 	const q = `INSERT INTO users (email, pass_hash, created_at)
 	           VALUES ($1, $2, NOW())
@@ -35,9 +32,6 @@ func (r *UserRepo) CreateUser(ctx context.Context, u entity.User) (int64, error)
 	return id, nil
 }
 
-// -----------------------------------------------------------------------------
-// ByEmail — SELECT … WHERE email = $1
-// -----------------------------------------------------------------------------
 func (r *UserRepo) ByEmail(ctx context.Context, email string) (entity.User, error) {
 	const q = `SELECT id, email, pass_hash, created_at
 	           FROM   users
@@ -45,7 +39,7 @@ func (r *UserRepo) ByEmail(ctx context.Context, email string) (entity.User, erro
 
 	var u entity.User
 	err := r.db.QueryRowContext(ctx, q, email).
-		Scan(&u.ID, &u.Email, &u.PassHash, &u.Created_at)
+		Scan(&u.ID, &u.Email, &u.PassHash, &u.CreatedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return entity.User{}, errs.ErrUserNotFound

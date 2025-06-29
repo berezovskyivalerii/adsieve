@@ -81,9 +81,9 @@ func (s *AuthService) SignIn(
 	return access, refresh, nil
 }
 
-func (s *AuthService) generateTokens(ctx context.Context, userId int64) (string, string, error) {
+func (s *AuthService) generateTokens(ctx context.Context, userID int64) (string, string, error) {
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   strconv.Itoa(int(userId)),
+		Subject:   strconv.Itoa(int(userID)),
 		IssuedAt:  time.Now().Unix(),
 		ExpiresAt: time.Now().Add(s.ttl).Unix(),
 	})
@@ -99,7 +99,7 @@ func (s *AuthService) generateTokens(ctx context.Context, userId int64) (string,
 	}
 
 	if err := s.sessionRepo.Create(ctx, entity.RefreshSession{
-		UserID:    userId,
+		UserID:    userID,
 		Token:     refreshToken,
 		ExpiresAt: time.Now().Add(time.Hour * 24 * 30),
 	}); err != nil {

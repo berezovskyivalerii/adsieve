@@ -31,6 +31,13 @@ CREATE TABLE ads_insights(
     PRIMARY KEY (ad_id, insight_date)
 );
 
+CREATE TABLE refresh_tokens(
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    token TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
 -- +goose down
 DROP TABLE IF EXISTS ads_insights;
 DROP TABLE IF EXISTS orders;

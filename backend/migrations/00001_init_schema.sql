@@ -12,14 +12,14 @@ CREATE TABLE
         id BIGSERIAL PRIMARY KEY,
         click_id VARCHAR(64) NOT NULL UNIQUE,
         ad_id BIGINT NOT NULL,
-        occured_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
 CREATE TABLE orders(
     id BIGSERIAL PRIMARY KEY,
     click_id VARCHAR(64) NOT NULL REFERENCES clicks(click_id),
-    order_value NUMERIC(12,2) NOT NULL,
-    occured_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+    order_value NUMERIC(12,2) NOT NULL UNIQUE,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
 );
 
 CREATE TABLE ads_insights(
@@ -42,4 +42,5 @@ CREATE TABLE refresh_tokens(
 DROP TABLE IF EXISTS ads_insights;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS clicks;
+DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;

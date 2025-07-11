@@ -14,9 +14,7 @@ type TokensRepo struct {
 
 func NewTokensRepo(db *sql.DB) *TokensRepo { return &TokensRepo{db: db} }
 
-// -----------------------------------------------------------------------------
 // Create – сохраняем refresh-токен (plain database/sql)
-// -----------------------------------------------------------------------------
 func (r *TokensRepo) Create(ctx context.Context, s entity.RefreshSession) error {
 	const q = `INSERT INTO refresh_tokens (user_id, token, expires_at)
 	           VALUES ($1, $2, $3)`
@@ -25,10 +23,8 @@ func (r *TokensRepo) Create(ctx context.Context, s entity.RefreshSession) error 
 	return err
 }
 
-// -----------------------------------------------------------------------------
 // Get – читаем токен и сразу удаляем все refresh-токены пользователя
 // (single-use + one-session policy)
-// -----------------------------------------------------------------------------
 func (r *TokensRepo) Get(ctx context.Context, rawToken string) (entity.RefreshSession, error) {
 	var rs entity.RefreshSession
 

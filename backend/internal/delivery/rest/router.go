@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	"github.com/gin-gonic/gin"
 )
@@ -14,24 +15,47 @@ type User interface {
 	Refresh(ctx context.Context, refreshToken string) (string, string, error)
 }
 
+type Click interface {
+	Click(ctx context.Context, clk entity.Click) (int64, error)
+}
+
+type Conversion interface {
+	Create(ctx context.Context, in entity.OrderInput) (int64, error)
+}
+
 type Handler struct {
-	userSvc User
+	userSvc  User
+	clickSvc Click
+	convSvc Conversion
 }
 
-func NewHandler(userSvc User) *Handler {
-	return &Handler{userSvc: userSvc}
+func NewHandler(userSvc User, clickSvc Click, convSvc Conversion) *Handler {
+	return &Handler{userSvc: userSvc, clickSvc: clickSvc, convSvc: convSvc}
 }
 
-func (h *Handler) Router() http.Handler {
+func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 
-	auth := r.Group("/api/auth")
+	jwtAuth := mw.NewJWTAuth(jwtSecret)
+	
+	api := r.Group("/api")
 	{
-		auth.POST("/sign-up", h.signUp)
-		auth.POST("/sign-in", h.signIn)
-		auth.POST("/refresh", h.refresh)
+		auth := api.Group("/auth")
+		{
+			auth.POST("/sign-up", h.signUp)
+			auth.POST("/sign-in", h.signIn)
+			auth.POST("/refresh", h.refresh)
+		}
+		api.POST("/click", h.click)
+
+		private := api.Group("/")
+		private.Use(jwtAuth.Middleware())
+		{
+			private.POST("/conversion", h.conversion)
+		}
 	}
+
 
 	return r
 }

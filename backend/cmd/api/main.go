@@ -12,13 +12,29 @@ import (
 	"time"
 
 	"database/sql"
+
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/crypto"
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/delivery/rest"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/service"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/shopspring/decimal"
 )
+
+func init() {
+    if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+        v.RegisterValidation("dec_gt0", func(fl validator.FieldLevel) bool {
+            d, ok := fl.Field().Interface().(decimal.Decimal)
+            if !ok {
+                return false
+            }
+            return d.GreaterThan(decimal.Zero)
+        })
+    }
+}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -31,9 +47,7 @@ func main() {
 	httpPort := getenv("PORT", "8080")
 	bcryptCost := atoi(getenv("BCRYPT_COST", ""))
 
-	//----------------------------------------------------------------------
 	// 2. Подключение к базе
-	//----------------------------------------------------------------------
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf("DB open: %v", err)
@@ -46,22 +60,22 @@ func main() {
 		log.Fatalf("DB ping: %v", err)
 	}
 
-	//----------------------------------------------------------------------
 	// 3. Сборка зависимостей
-	//----------------------------------------------------------------------
+	convRepo := postgres.NewOrderRepo(db)
+	clkRepo := postgres.NewClicksRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	tokenRepo := postgres.NewTokensRepo(db)
 	hasher := crypto.NewBcryptHasher(bcryptCost)
 
+	convSvc := service.NewConversionService(clkRepo, convRepo)
+	clkSvc := service.NewClickService(clkRepo)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, hasher, jwtSecret)
-	handler := rest.NewHandler(authSvc)
+	handler := rest.NewHandler(authSvc, clkSvc, convSvc)
 
-	//----------------------------------------------------------------------
 	// 4. HTTP-сервер + graceful shutdown
-	//----------------------------------------------------------------------
 	srv := &http.Server{
 		Addr:         ":" + httpPort,
-		Handler:      handler.Router(),
+		Handler:      handler.Router(jwtSecret),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,

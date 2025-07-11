@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: adsieve-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: adsieve
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  goose:
+    image: gomicro/goose:3.24.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    environment:             
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: host=postgres user=postgres password=secret dbname=adsieve sslmode=disable
+    entrypoint: ["goose"]
+    command:                     
+      - -dir=/migrations
+      - up
+    restart: "no"
+
+  api:
+    build: .
+    depends_on: [postgres, goose]
+    ports: ["8080:8080"]
+    env_file: .env
+    environment:
+      DB_DSN: postgres://postgres:secret@postgres:5432/adsieve?sslmode=disable
+      JWT_SECRET: super-secret-key
+      BCRYPT_COST: "12"
+      PORT: "8080"
+    restart: unless-stopped
+    volumes:
+      - ./.env:/app/.env:ro
+
+volumes:
+  db_data:

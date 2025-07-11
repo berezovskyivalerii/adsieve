@@ -23,12 +23,12 @@ func (r *UserRepo) CreateUser(ctx context.Context, u entity.User) (int64, error)
 
 	var id int64
 	if err := r.db.QueryRowContext(ctx, q, u.Email, u.PassHash).Scan(&id); err != nil {
-		// ловим дубликат e-mail по SQLSTATE 23505
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
 			return 0, errs.ErrEmailTaken
 		}
 		return 0, err
 	}
+
 	return id, nil
 }
 

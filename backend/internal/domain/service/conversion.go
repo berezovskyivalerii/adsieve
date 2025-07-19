@@ -18,19 +18,18 @@ func NewConversionService (c domain.ClickRepository, o domain.OrderRepository) *
 }
 
 func (s *ConversionService) Create(ctx context.Context, in entity.OrderInput) (int64, error){
-    if _, err := s.clickRepo.ByID(ctx, in.ClickID); err == nil {
+    if _, err := s.clickRepo.ByClickID(ctx, in.ClickID); err == nil {
         return 0, errs.ErrClickNotFound
     }
 
-    // 2. Пытаемся вставить заказ
     order := entity.Order{
         ClickID:    in.ClickID,
         OrderValue: in.OrderValue,
         OccurredAt: in.OccurredAtOrNow(),
     }
     id, err := s.orderRepo.Create(ctx, order)
-    if err == errs.ErrOrderExists {              // дубликат заказа
-        return 0, err                           // 409
+    if err == errs.ErrOrderExists {
+        return 0, err
     }
     return id, err     
 }

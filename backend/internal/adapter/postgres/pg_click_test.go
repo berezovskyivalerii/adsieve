@@ -22,6 +22,7 @@ func newRepoClicks(t *testing.T) (*postgres.ClicksRepo, sqlmock.Sqlmock, func())
 }
 
 func TestClick(t *testing.T) {
+	t.Parallel()
 	t.Run("happy path", func(t *testing.T) {
 		repo, mock, done := newRepoClicks(t)
 		defer done()
@@ -55,43 +56,42 @@ func TestClick(t *testing.T) {
 }
 
 func TestById(t *testing.T) {
-	t.Run("happy path", func(t *testing.T) {
-		repo, mock, done := newRepoClicks(t)
-		defer done()
+	t.Parallel()
+    t.Run("happy path", func(t *testing.T) {
+        repo, mock, done := newRepoClicks(t)
+        defer done()
 
-		const (
-			id      string = "abc"
-			clickID       = "123id123"
-			adID    int64 = 3
-		)
-		occurredAt := time.Now()
+        const (
+            rowID      int64  = 1
+            clickID           = "click_123"
+            adID       int64  = 17
+        )
+        occurredAt := time.Now()
 
-		mock.ExpectQuery(`SELECT id, click_id, ad_id, occurred_at FROM\s+clicks\s+WHERE`).
-			WithArgs(id).
-			WillReturnRows(
-				sqlmock.NewRows([]string{"id", "click_id", "ad_id", "occurred_at"}).
-					AddRow(id, clickID, adID, occurredAt),
-			)
+        mock.ExpectQuery(`SELECT id, click_id, ad_id, occurred_at\s+FROM\s+clicks\s+WHERE\s+click_id\s*=\s*\$1`).
+            WithArgs(clickID).
+            WillReturnRows(sqlmock.NewRows([]string{"id", "click_id", "ad_id", "occurred_at"}).
+                AddRow(rowID, clickID, adID, occurredAt))
 
-		clk, err := repo.ByID(context.Background(), id)
-		require.NoError(t, err)
-		require.Equal(t, id, clk.ID)
-		require.Equal(t, clickID, clk.ClickID)
-		require.Equal(t, adID, clk.AdID)
-		require.WithinDuration(t, occurredAt, clk.OccurredAt, time.Second)
-		require.NoError(t, mock.ExpectationsWereMet())
-	})
+        clk, err := repo.ByClickID(context.Background(), clickID)
+        require.NoError(t, err)
+        require.Equal(t, rowID, clk.ID)
+        require.Equal(t, clickID, clk.ClickID)
+        require.Equal(t, adID, clk.AdID)
+        require.WithinDuration(t, occurredAt, clk.OccurredAt, time.Second)
+        require.NoError(t, mock.ExpectationsWereMet())
+    })
 
-	t.Run("not found → ErrClickNotFound", func(t *testing.T) {
-		repo, mock, done := newRepoClicks(t)
-		defer done()
+    t.Run("not found", func(t *testing.T) {
+        repo, mock, done := newRepoClicks(t)
+        defer done()
 
-		mock.ExpectQuery(`SELECT id, click_id, ad_id, occurred_at FROM\s+clicks\s+WHERE`).
-			WithArgs("abc").
-			WillReturnError(sql.ErrNoRows)
+        mock.ExpectQuery(`SELECT id, click_id, ad_id, occurred_at\s+FROM\s+clicks`).
+            WithArgs("absent_click").
+            WillReturnError(sql.ErrNoRows)
 
-		_, err := repo.ByID(context.Background(), "abc")
-		require.ErrorIs(t, err, errs.ErrClickNotFound)
-		require.NoError(t, mock.ExpectationsWereMet())
-	})
+        _, err := repo.ByClickID(context.Background(), "absent_click")
+        require.ErrorIs(t, err, errs.ErrClickNotFound)
+        require.NoError(t, mock.ExpectationsWereMet())
+    })
 }

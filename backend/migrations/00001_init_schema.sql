@@ -18,9 +18,11 @@ CREATE TABLE
 CREATE TABLE orders(
     id BIGSERIAL PRIMARY KEY,
     click_id VARCHAR(64) NOT NULL REFERENCES clicks(click_id),
-    order_value NUMERIC(12,2) NOT NULL UNIQUE,
+    order_value NUMERIC(12,2) NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+    CONSTRAINT uq_orders_click UNIQUE (click_id) 
 );
+CREATE INDEX idx_orders_click ON orders(click_id);
 
 CREATE TABLE ads_insights(
     ad_id BIGINT NOT NULL,

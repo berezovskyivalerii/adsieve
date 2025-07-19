@@ -8,7 +8,7 @@ import (
 
 type ClickRepository interface {
 	Click(ctx context.Context, clk entity.Click) (int64, error)
-	ByID(ctx context.Context, id string) (entity.Click, error)
+	ByClickID(ctx context.Context, id string) (entity.Click, error)
 }
 
 type AuthRepository interface {

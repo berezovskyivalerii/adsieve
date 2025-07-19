@@ -32,10 +32,10 @@ func (r *ClicksRepo) Click(ctx context.Context, clk entity.Click) (int64, error)
 }
 
 // этот метод существует только в репозитории
-func (r *ClicksRepo) ByID(ctx context.Context, id string) (entity.Click, error){
+func (r *ClicksRepo) ByClickID(ctx context.Context, id string) (entity.Click, error){
 	const q = `SELECT id, click_id, ad_id, occurred_at
 	           FROM   clicks
-	           WHERE  id = $1`
+	           WHERE  click_id = $1`
 
 	var c entity.Click
 	err := r.db.QueryRowContext(ctx, q, id).

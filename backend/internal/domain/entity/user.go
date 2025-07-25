@@ -12,10 +12,10 @@ func init() {
 }
 
 type User struct {
-	ID        int64     `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	PassHash  string    `json:"pass_hash" db:"pass_hash"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UserID       int64     `json:"user_id" db:"user_id"`
+	Email        string    `json:"email" db:"email"`
+	PassHash     string    `json:"pass_hash" db:"pass_hash"`
+	RegisteredAt time.Time `json:"registered_at" db:"registered_at"`
 }
 
 type SignInput struct {

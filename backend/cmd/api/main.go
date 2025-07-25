@@ -61,16 +61,20 @@ func main() {
 	}
 
 	// 3. Сборка зависимостей
+	userAdsRepo := postgres.NewUserAdsRepo(db)
+	metricsRepo := postgres.NewMetricsRepo(db)
 	convRepo := postgres.NewOrderRepo(db)
 	clkRepo := postgres.NewClicksRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	tokenRepo := postgres.NewTokensRepo(db)
 	hasher := crypto.NewBcryptHasher(bcryptCost)
 
+	metricsSvc := service.NewMetricsService(metricsRepo, userAdsRepo)
 	convSvc := service.NewConversionService(clkRepo, convRepo)
 	clkSvc := service.NewClickService(clkRepo)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, hasher, jwtSecret)
-	handler := rest.NewHandler(authSvc, clkSvc, convSvc)
+	
+	handler := rest.NewHandler(authSvc, clkSvc, convSvc, metricsSvc)
 
 	// 4. HTTP-сервер + graceful shutdown
 	srv := &http.Server{

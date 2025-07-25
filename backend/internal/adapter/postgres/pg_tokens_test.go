@@ -29,15 +29,15 @@ func TestTokensRepo_Create(t *testing.T) {
 		repo, mock, done := newRepoTokens(t)
 		defer done()
 
-		rs := entity.RefreshSession{
-			UserID:    7,
-			Token:     "abc123",
-			ExpiresAt: time.Now().Add(24 * time.Hour),
+		rs := entity.RefreshToken{
+			UserID:       7,
+			RefreshToken: "abc123",
+			ExpiresAt:    time.Now().Add(24 * time.Hour),
 		}
 
 		mock.ExpectExec(`INSERT INTO refresh_tokens`).
-			WithArgs(rs.UserID, rs.Token, rs.ExpiresAt).
-			WillReturnResult(sqlmock.NewResult(1, 1)) // id, rowsAffected
+			WithArgs(rs.UserID, rs.RefreshToken, rs.ExpiresAt).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		err := repo.Create(context.Background(), rs)
 		require.NoError(t, err)
@@ -47,14 +47,14 @@ func TestTokensRepo_Create(t *testing.T) {
 		repo, mock, done := newRepoTokens(t)
 		defer done()
 
-		rs := entity.RefreshSession{
-			UserID:    7,
-			Token:     "abc123",
-			ExpiresAt: time.Now(),
+		rs := entity.RefreshToken{
+			UserID:       7,
+			RefreshToken: "abc123",
+			ExpiresAt:    time.Now(),
 		}
 
 		mock.ExpectExec(`INSERT INTO refresh_tokens`).
-			WithArgs(rs.UserID, rs.Token, rs.ExpiresAt).
+			WithArgs(rs.UserID, rs.RefreshToken, rs.ExpiresAt).
 			WillReturnError(errors.New("boom"))
 
 		err := repo.Create(context.Background(), rs)
@@ -78,7 +78,7 @@ func TestTokensRepo_Get(t *testing.T) {
 		defer done()
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT id, user_id, token, expires_at FROM\s+refresh_tokens`).
+		mock.ExpectQuery(`SELECT id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
 			WithArgs(raw).
 			WillReturnRows(happyRows)
 		mock.ExpectExec(`DELETE FROM refresh_tokens WHERE user_id =`).
@@ -88,9 +88,9 @@ func TestTokensRepo_Get(t *testing.T) {
 
 		rs, err := repo.Get(context.Background(), raw)
 		require.NoError(t, err)
-		require.Equal(t, rid, rs.ID)
+		require.Equal(t, rid, rs.TokenID)
 		require.Equal(t, uid, rs.UserID)
-		require.Equal(t, raw, rs.Token)
+		require.Equal(t, raw, rs.RefreshToken)
 		require.WithinDuration(t, expires, rs.ExpiresAt, time.Second)
 	})
 
@@ -99,7 +99,7 @@ func TestTokensRepo_Get(t *testing.T) {
 		defer done()
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT id, user_id, token, expires_at FROM\s+refresh_tokens`).
+		mock.ExpectQuery(`SELECT token_id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
 			WithArgs(raw).
 			WillReturnError(sql.ErrNoRows)
 		mock.ExpectRollback()
@@ -113,11 +113,11 @@ func TestTokensRepo_Get(t *testing.T) {
 		defer done()
 
 		rows := sqlmock.NewRows(
-			[]string{"id", "user_id", "token", "expires_at"},
+			[]string{"token_id", "user_id", "refresh_token", "expires_at"},
 		).AddRow(rid, uid, raw, expires)
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT id, user_id, token, expires_at FROM\s+refresh_tokens`).
+		mock.ExpectQuery(`SELECT token_id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
 			WithArgs(raw).
 			WillReturnRows(rows)
 		mock.ExpectExec(`DELETE FROM refresh_tokens WHERE user_id =`).

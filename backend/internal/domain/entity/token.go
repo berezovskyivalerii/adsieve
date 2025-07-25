@@ -2,9 +2,9 @@ package entity
 
 import "time"
 
-type RefreshSession struct {
-	ID        int64
-	UserID    int64
-	Token     string
-	ExpiresAt time.Time
+type RefreshToken struct {
+	TokenID      int64     `db:"token_id"`
+	UserID       int64     `db:"user_id"`
+	RefreshToken string    `db:"refresh_token"`
+	ExpiresAt    time.Time `db:"expires_at"`
 }

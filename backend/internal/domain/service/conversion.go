@@ -18,8 +18,12 @@ func NewConversionService (c domain.ClickRepository, o domain.OrderRepository) *
 }
 
 func (s *ConversionService) Create(ctx context.Context, in entity.OrderInput) (int64, error){
-    if _, err := s.clickRepo.ByClickID(ctx, in.ClickID); err == nil {
-        return 0, errs.ErrClickNotFound
+    if _, err := s.clickRepo.ByClickID(ctx, in.ClickID); err != nil {
+        if err == errs.ErrClickNotFound {
+            return 0, err
+        }
+
+        return 0, err
     }
 
     order := entity.Order{

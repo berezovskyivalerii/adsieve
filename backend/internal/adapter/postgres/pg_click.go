@@ -17,32 +17,32 @@ type ClicksRepo struct {
 func NewClicksRepo(db *sql.DB) *ClicksRepo { return &ClicksRepo{db: db}}
 
 func (r *ClicksRepo) Click(ctx context.Context, clk entity.Click) (int64, error) {
-	const q = `INSERT INTO clicks (click_id, ad_id, occurred_at)
-			   VALUES ($1, $2, $3)
+	const q = `INSERT INTO clicks (click_id, ad_id, clicked_at, click_ref)
+			   VALUES ($1, $2, $3, $4)
 			   RETURNING id`
 	
-	var id int64
-	if err := r.db.QueryRowContext(ctx, q, clk.ClickID, clk.AdID, clk.OccurredAt).Scan(&id); err != nil{
+	var ID int64
+	if err := r.db.QueryRowContext(ctx, q, clk.ClickID, clk.AdID, clk.ClickedAt, clk.ClickRef).Scan(&ID); err != nil{
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
 			return 0, errs.ErrDuplicateClick
 		}
 		return 0, err
 	}
-	return id, nil
+	return ID, nil
 }
 
 // этот метод существует только в репозитории
 func (r *ClicksRepo) ByClickID(ctx context.Context, id string) (entity.Click, error){
-	const q = `SELECT id, click_id, ad_id, occurred_at
+	const q = `SELECT id, click_id, ad_id, clicked_at, click_ref
 	           FROM   clicks
 	           WHERE  click_id = $1`
 
-	var c entity.Click
+	var clk entity.Click
 	err := r.db.QueryRowContext(ctx, q, id).
-		Scan(&c.ID, &c.ClickID, &c.AdID, &c.OccurredAt)
+		Scan(&clk.ClickID, &clk.ID, &clk.ClickID, &clk.AdID, &clk.ClickedAt, &clk.ClickRef)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return entity.Click{}, errs.ErrClickNotFound
 	}
-	return c, err
+	return clk, err
 }

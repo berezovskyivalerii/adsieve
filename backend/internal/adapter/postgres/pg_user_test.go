@@ -74,10 +74,10 @@ func TestByEmail(t *testing.T) {
 
 		u, err := repo.ByEmail(context.Background(), email)
 		require.NoError(t, err)
-		require.Equal(t, id, u.ID)
+		require.Equal(t, id, u.UserID)
 		require.Equal(t, email, u.Email)
 		require.Equal(t, passHash, u.PassHash)
-		require.WithinDuration(t, created, u.CreatedAt, time.Second)
+		require.WithinDuration(t, created, u.RegisteredAt, time.Second)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 

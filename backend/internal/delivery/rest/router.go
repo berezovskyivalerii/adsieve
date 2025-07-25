@@ -23,14 +23,20 @@ type Conversion interface {
 	Create(ctx context.Context, in entity.OrderInput) (int64, error)
 }
 
+type Metrics interface {
+	Get(ctx context.Context, userID int64, f entity.MetricsFilter) ([]entity.DailyMetricDTO, error)
+}
+
+
 type Handler struct {
 	userSvc  User
 	clickSvc Click
 	convSvc Conversion
+	metricsSvc Metrics
 }
 
-func NewHandler(userSvc User, clickSvc Click, convSvc Conversion) *Handler {
-	return &Handler{userSvc: userSvc, clickSvc: clickSvc, convSvc: convSvc}
+func NewHandler(userSvc User, clickSvc Click, convSvc Conversion, metricsSvc Metrics) *Handler {
+	return &Handler{userSvc: userSvc, clickSvc: clickSvc, convSvc: convSvc, metricsSvc: metricsSvc}
 }
 
 func (h *Handler) Router(jwtSecret []byte) http.Handler {
@@ -53,6 +59,7 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 		private.Use(jwtAuth.Middleware())
 		{
 			private.POST("/conversion", h.conversion)
+			private.GET("/metrics", h.get)
 		}
 	}
 

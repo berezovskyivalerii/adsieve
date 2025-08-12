@@ -17,10 +17,9 @@ type Conversion struct {
 }
 
 type ConversionInput struct {
-	AdID        int64           `json:"ad_id"        validate:"required,min=1"`
-	Revenue     decimal.Decimal `json:"revenue"      validate:"required"`
+	ClickID     string          `json:"click_id"   validate:"required"`
+	Revenue     decimal.Decimal `json:"revenue"    validate:"required"`
 	OrderID     *string         `json:"order_id,omitempty"`
-	ClickRef    *uuid.UUID      `json:"click_ref,omitempty"`
 	ConvertedAt *int64          `json:"converted_at,omitempty"`
 }
 

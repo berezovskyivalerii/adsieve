@@ -21,12 +21,7 @@ func NewMetricsService(m domain.MetricsRepository, a domain.UserAdsRepo) *Metric
 	return &MetricsService{metricsRepo: m, userAdsRepo: a}
 }
 
-func (s *MetricsService) Get(
-	ctx context.Context,
-	userID int64,
-	f entity.MetricsFilter,
-) ([]entity.DailyMetricDTO, error) {
-
+func (s *MetricsService) Get(ctx context.Context, userID int64, f entity.MetricsFilter) ([]entity.DailyMetricDTO, error) {
 	/* 1. Диапазон */
 	if f.To.Before(f.From) || f.To.Sub(f.From) > maxRange {
 		return nil, errs.ErrInvalidRange
@@ -58,7 +53,9 @@ func (s *MetricsService) Get(
 	for _, m := range raw {
 		dto := entity.DailyMetricDTO{
 			AdID:        m.AdID,
-			Day:         m.Day.Format("2006-01-02"),
+			Name:        m.Name,
+			Status:      m.Status,
+			Day:         m.MetricDate.Format("2006-01-02"),
 			Clicks:      m.Clicks,
 			Conversions: m.Conversions,
 			Revenue:     m.Revenue.StringFixed(2),

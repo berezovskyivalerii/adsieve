@@ -8,6 +8,8 @@ import (
 
 type AdDailyMetric struct {
 	AdID        int64           `json:"ad_id"        db:"ad_id"         validate:"required,gt=0"`
+	Name        string          `json:"name"   		 db:"name"`
+	Status      string          `json:"status" 		 db:"status"`
 	MetricDate  time.Time       `json:"metric_date"  db:"metric_date"`
 	Clicks      int             `json:"clicks"       db:"clicks"`
 	Conversions int             `json:"conversions"  db:"conversions"`
@@ -37,7 +39,9 @@ func (m AdDailyMetric) ROAS() *decimal.Decimal {
 // Денежные поля выводятся строкой, чтобы не терять точность в JS.
 type DailyMetricDTO struct {
 	AdID        int64  `json:"ad_id"`
-	Day         string `json:"day"`         // YYYY-MM-DD
+	Name        string `json:"name"`
+	Status      string `json:"status"`
+	Day         string `json:"day"` // YYYY-MM-DD
 	Clicks      int    `json:"clicks"`
 	Conversions int    `json:"conversions"`
 	Revenue     string `json:"revenue"`
@@ -45,7 +49,6 @@ type DailyMetricDTO struct {
 	CPA         string `json:"cpa,omitempty"`
 	ROAS        string `json:"roas,omitempty"`
 }
-
 
 // Фильтр, который принимает сервис
 type MetricsFilter struct {

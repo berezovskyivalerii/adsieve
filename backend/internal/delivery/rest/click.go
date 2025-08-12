@@ -2,7 +2,6 @@ package rest
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
@@ -10,11 +9,12 @@ import (
 )
 
 type clickReq struct {
-	ClickID    string `json:"click_id" binding:"required"`
-	AdID       int64  `json:"ad_id" binding:"required"`
-	OccurredAt int64  `json:"occurred_at" binding:"required"`
+	ClickID   string `json:"click_id" binding:"required"`
+	AdID      int64  `json:"ad_id" binding:"required"`
+	ClickedAt int64  `json:"clicked_at" binding:"required"`
 }
 
+// Регистрация клика, сохранение в БД
 func (h *Handler) click(c *gin.Context) {
 	var req clickReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -22,10 +22,10 @@ func (h *Handler) click(c *gin.Context) {
 		return
 	}
 
-	clk := entity.Click{
-		ClickID:    req.ClickID,
-		AdID:       req.AdID,
-		OccurredAt: time.Unix(req.OccurredAt, 0).UTC(),
+	clk := entity.ClickInput{
+		ClickID:   req.ClickID,
+		AdID:      req.AdID,
+		ClickedAt: &req.ClickedAt,
 	}
 
 	id, err := h.clickSvc.Click(c.Request.Context(), clk)
@@ -33,7 +33,7 @@ func (h *Handler) click(c *gin.Context) {
 	case nil:
 		c.JSON(http.StatusCreated, gin.H{"click_id": id})
 	case errs.ErrDuplicateClick:
-		c.JSON(http.StatusConflict, gin.H{"error": "click already registered"})
+		c.JSON(http.StatusConflict, gin.H{"error": "click_already_registered"})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}

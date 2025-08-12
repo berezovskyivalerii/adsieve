@@ -21,8 +21,8 @@ type PasswordHasher interface {
 }
 
 type SessionsRepository interface {
-	Create(ctx context.Context, token entity.RefreshSession) error
-	Get(ctx context.Context, token string) (entity.RefreshSession, error)
+	Create(ctx context.Context, token entity.RefreshToken) error
+	Get(ctx context.Context, token string) (entity.RefreshToken, error)
 }
 
 type AuthService struct {
@@ -74,7 +74,7 @@ func (s *AuthService) SignIn(
 		return "", "", errs.ErrInvalidCreds
 	}
 
-	access, refresh, err := s.generateTokens(ctx, user.ID)
+	access, refresh, err := s.generateTokens(ctx, user.UserID)
 	if err != nil {
 		return "", "", err
 	}
@@ -98,10 +98,10 @@ func (s *AuthService) generateTokens(ctx context.Context, userID int64) (string,
 		return "", "", err
 	}
 
-	if err := s.sessionRepo.Create(ctx, entity.RefreshSession{
-		UserID:    userID,
-		Token:     refreshToken,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 30),
+	if err := s.sessionRepo.Create(ctx, entity.RefreshToken{
+		UserID:       userID,
+		RefreshToken: refreshToken,
+		ExpiresAt:    time.Now().Add(time.Hour * 24 * 30),
 	}); err != nil {
 		return "", "", err
 	}

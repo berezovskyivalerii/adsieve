@@ -16,6 +16,7 @@ type ClicksRepo struct {
 
 func NewClicksRepo(db *sql.DB) *ClicksRepo { return &ClicksRepo{db: db}}
 
+// Делает INSERT в таблицу clicks
 func (r *ClicksRepo) Click(ctx context.Context, clk entity.Click) (int64, error) {
 	const q = `INSERT INTO clicks (click_id, ad_id, clicked_at, click_ref)
 			   VALUES ($1, $2, $3, $4)

@@ -11,6 +11,7 @@ var (
 	ErrDuplicateClick = errors.New("click alredy registered")
 	ErrClickNotFound = errors.New("click was not found")
 	ErrConversionExists = errors.New("conversion already exists")
+	ErrConversionNotFound = errors.New("conversion not found")
 	ErrInvalidRange = errors.New("invalid date range")
 	ErrNoAdAccess   = errors.New("no access to requested ad_id")
 )

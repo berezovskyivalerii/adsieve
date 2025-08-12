@@ -17,7 +17,7 @@ type AuthRepository interface {
 	CreateUser(ctx context.Context, user entity.User) (int64, error)
 }
 
-type OrderRepository interface {
+type ConversionRepository interface {
 	Create(ctx context.Context, in entity.Conversion) (int64, error)
 }
 

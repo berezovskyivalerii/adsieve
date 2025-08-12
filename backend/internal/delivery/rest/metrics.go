@@ -17,10 +17,10 @@ GET /api/metrics?ad_id=87,91&from=2025-07-01&to=2025-07-19
 Headers: Authorization: Bearer <JWT>
 
 Поведение:
-  • Если query-параметры отсутствуют, отдаём «с 1-го числа текущего месяца до вчера».
-  • ad_id может быть пустым или списком через запятую.
+  - Если query-параметры отсутствуют, отдаём «с 1-го числа текущего месяца до вчера».
+  - ad_id может быть пустым или списком через запятую.
 */
-func (h *Handler) get(c *gin.Context) {
+func (h *Handler) metrics(c *gin.Context) {
 	userID, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -59,7 +59,7 @@ func (h *Handler) get(c *gin.Context) {
 	case errs.ErrNoAdAccess:
 		c.JSON(http.StatusNotFound, gin.H{"error": "ad_not_found"})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }
 

@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"time"
+	"net/http"
 
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
@@ -9,33 +9,37 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type convReq struct {
-	ClickID    string          `json:"click_id"    binding:"required"`
-	OrderValue decimal.Decimal `json:"order_value" binding:"required,dec_gt0"`
-	OccurredAt int64           `json:"occurred_at"`
+type conversionRequest struct {
+	ClickID     string  `json:"click_id"      binding:"required"` // ID клика
+	Revenue     float64 `json:"revenue"       binding:"required,gt=0"` // Прибыль
+	OrderID     *string `json:"order_id,omitempty"` // ID заказа в системе магазина
+	ConvertedAt *int64  `json:"converted_at,omitempty"` // Время совершения заказа
 }
 
+// Регистрация конверсии (заказа), добавление в БД
 func (h *Handler) conversion(c *gin.Context) {
-	var req convReq
+	var req conversionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	id, err := h.convSvc.Create(c,
-		entity.OrderInput{
-			ClickID:    req.ClickID,
-			OrderValue: req.OrderValue,
-			OccurredAt: time.Unix(req.OccurredAt, 0).UTC(),
-		})
+	in := entity.ConversionInput{
+		ClickID:     req.ClickID,
+		Revenue:     decimal.NewFromFloat(req.Revenue),
+		OrderID:     req.OrderID,
+		ConvertedAt: req.ConvertedAt,
+	}
+
+	conversionID, err := h.convSvc.Create(c, in)
 	switch err {
 	case nil:
-		c.JSON(201, gin.H{"id": id})
+		c.JSON(http.StatusCreated, gin.H{"conversion_id": conversionID})
 	case errs.ErrClickNotFound:
-		c.JSON(404, gin.H{"error": "click not found"})
-	case errs.ErrOrderExists:
-		c.JSON(409, gin.H{"error": "order already registered"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "click_no_found"})
+	case errs.ErrConversionExists:
+		c.JSON(http.StatusConflict, gin.H{"error": "conversion_already_registered"})
 	default:
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }

@@ -32,17 +32,19 @@ func (r *MetricsRepo) Upsert(ctx context.Context, m entity.AdDailyMetric) error 
 }
 
 const listMetricsSQL = `
-	SELECT
-		ad_id,
-		metric_date,
-		clicks,
-		conversions,
-		revenue,
-		spend
-	FROM ad_daily_metrics
-	WHERE metric_date BETWEEN $1 AND $2
-	AND ad_id = ANY($3)
-	ORDER BY ad_id, metric_date;
+	SELECT  m.ad_id,
+			m.metric_date,
+			m.clicks,
+			m.conversions,
+			m.revenue,
+			m.spend,
+			a.name,
+			a.status
+	FROM    ad_daily_metrics m
+	JOIN    ads a  ON a.ad_id = m.ad_id
+	WHERE   a.user_id = $currentUser
+	AND   m.metric_date BETWEEN $1 AND $2
+	AND   a.ad_id = ANY($3);
 `
 
 func (r *MetricsRepo) List(
@@ -66,6 +68,8 @@ func (r *MetricsRepo) List(
 			&m.Conversions,
 			&m.Revenue,
 			&m.Spend,
+			&m.Name,
+			&m.Status,
 		); err != nil {
 			return nil, err
 		}

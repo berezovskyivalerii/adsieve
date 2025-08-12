@@ -9,31 +9,33 @@ import (
 )
 
 type ConversionService struct {
-	clickRepo domain.ClickRepository
-	orderRepo domain.OrderRepository
+	clickRepo      domain.ClickRepository
+	conversionRepo domain.ConversionRepository
 }
 
-func NewConversionService (c domain.ClickRepository, o domain.OrderRepository) *ConversionService{
-	return &ConversionService{clickRepo: c, orderRepo: o}
+func NewConversionService(c domain.ClickRepository, conv domain.ConversionRepository) *ConversionService {
+	return &ConversionService{clickRepo: c, conversionRepo: conv}
 }
 
-func (s *ConversionService) Create(ctx context.Context, in entity.OrderInput) (int64, error){
-    if _, err := s.clickRepo.ByClickID(ctx, in.ClickID); err != nil {
-        if err == errs.ErrClickNotFound {
-            return 0, err
-        }
+func (s *ConversionService) Create(ctx context.Context, in entity.ConversionInput) (int64, error) {
+	click, err := s.clickRepo.ByClickID(ctx, in.ClickID) // Проверяем существует ли указаный клик
+	if err != nil {
+		if err == errs.ErrClickNotFound {
+			return 0, errs.ErrClickNotFound
+		}
+		return 0, err
+	}
 
-        return 0, err
-    }
-
-    order := entity.Order{
-        ClickID:    in.ClickID,
-        OrderValue: in.OrderValue,
-        OccurredAt: in.OccurredAtOrNow(),
-    }
-    id, err := s.orderRepo.Create(ctx, order)
-    if err == errs.ErrOrderExists {
-        return 0, err
-    }
-    return id, err     
+	conv := entity.Conversion{
+		AdID:        click.AdID, // cвязываем с таблицей ads
+		ConvertedAt: in.ParsedConvertedAt(),
+		Revenue:     in.Revenue,
+		OrderID:     in.OrderID,
+		ClickRef:    &click.ClickRef, // связь с помощью поля ClickRef с таблицей clicks
+	}
+	id, err := s.conversionRepo.Create(ctx, conv)
+	if err == errs.ErrConversionExists {
+		return 0, errs.ErrConversionExists
+	}
+	return id, err
 }

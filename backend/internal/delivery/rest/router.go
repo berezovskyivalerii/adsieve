@@ -1,4 +1,4 @@
-package rest
+	package rest
 
 import (
 	"context"
@@ -16,11 +16,11 @@ type User interface {
 }
 
 type Click interface {
-	Click(ctx context.Context, clk entity.Click) (int64, error)
+	Click(ctx context.Context, clk entity.ClickInput) (int64, error)
 }
 
 type Conversion interface {
-	Create(ctx context.Context, in entity.OrderInput) (int64, error)
+	Create(ctx context.Context, in entity.ConversionInput) (int64, error)
 }
 
 type Metrics interface {
@@ -59,7 +59,8 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 		private.Use(jwtAuth.Middleware())
 		{
 			private.POST("/conversion", h.conversion)
-			private.GET("/metrics", h.get)
+			private.GET("/metrics", h.metrics)
+			private.GET("/ads", h.ads)
 		}
 	}
 

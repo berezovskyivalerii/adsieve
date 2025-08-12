@@ -63,7 +63,7 @@ func main() {
 	// 3. Сборка зависимостей
 	userAdsRepo := postgres.NewUserAdsRepo(db)
 	metricsRepo := postgres.NewMetricsRepo(db)
-	convRepo := postgres.NewOrderRepo(db)
+	convRepo := postgres.NewConversionRepo(db)
 	clkRepo := postgres.NewClicksRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	tokenRepo := postgres.NewTokensRepo(db)

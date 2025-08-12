@@ -37,7 +37,7 @@ func (h *Handler) signUp(c *gin.Context) {
 			"refresh_token": refreshToken,
 		})
 	case errs.ErrEmailTaken:
-		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
+		c.JSON(http.StatusConflict, gin.H{"error": "email_already_registered"})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}

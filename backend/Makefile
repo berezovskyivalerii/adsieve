@@ -118,3 +118,4 @@ metrics-today: ## запросить метрики за сегодня (UTC) �
 .PHONY: dev
 dev: env build up-all api-alive ## полный цикл: .env → build → db+migrate → api+cron
 	@echo "[done] проект запущен: http://localhost:8080"
+	

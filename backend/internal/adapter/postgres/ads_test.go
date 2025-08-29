@@ -33,7 +33,7 @@ func TestAdsRepo_ListByUser_HappyWithFilters(t *testing.T) {
 		AdIDs:    []int64{87, 112},
 		Limit:    2,
 		Offset:   0,
-		Sort:     "-created_at",
+		Sort:     "-name", // было "-created_at"
 	}
 
 	// COUNT(*)
@@ -41,8 +41,8 @@ func TestAdsRepo_ListByUser_HappyWithFilters(t *testing.T) {
 		WithArgs(userID, status, platform, "%"+query+"%", pq.Array([]int64{87, 112})).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-	// SELECT items
-	mock.ExpectQuery(`SELECT\s+a\.ad_id, a\.account_id, a\.name, a\.status, a\.platform\s+FROM\s+ads a\s+JOIN\s+ad_accounts aa\s+ON aa\.account_id = a\.account_id\s+WHERE\s+aa\.user_id = \$1\s+AND a\.status = \$2\s+AND a\.platform = \$3\s+AND a\.name ILIKE \$4\s+AND a\.ad_id = ANY\(\$5\)\s+ORDER BY a\.created_at DESC\s+LIMIT \$6 OFFSET \$7`).
+	// SELECT items — ждём сортировку по имени по убыванию
+	mock.ExpectQuery(`SELECT\s+a\.ad_id, a\.account_id, a\.name, a\.status, a\.platform\s+FROM\s+ads a\s+JOIN\s+ad_accounts aa\s+ON aa\.account_id = a\.account_id\s+WHERE\s+aa\.user_id = \$1\s+AND a\.status = \$2\s+AND a\.platform = \$3\s+AND a\.name ILIKE \$4\s+AND a\.ad_id = ANY\(\$5\)\s+ORDER BY a\.name DESC\s+LIMIT \$6 OFFSET \$7`).
 		WithArgs(userID, status, platform, "%"+query+"%", pq.Array([]int64{87, 112}), 2, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"ad_id", "account_id", "name", "status", "platform"}).
 			AddRow(int64(87), int64(1001), "Summer Sale Shoes", "active", "facebook").
@@ -195,7 +195,7 @@ func TestAdsRepo_ListByUser_ScanError_SecondRow(t *testing.T) {
 		WithArgs(userID).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-	// Первая строка валидна, вторая ломает Scan (строка вместо BIGINT для ad_id)
+	// Первая строка валидна, вторая ломает Scan
 	rows := sqlmock.NewRows([]string{"ad_id", "account_id", "name", "status", "platform"}).
 		AddRow(int64(1), int64(10), "A", "active", "facebook").
 		AddRow("oops", int64(10), "B", "active", "facebook")
@@ -208,4 +208,3 @@ func TestAdsRepo_ListByUser_ScanError_SecondRow(t *testing.T) {
 	require.Error(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
-

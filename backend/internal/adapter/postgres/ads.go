@@ -98,10 +98,6 @@ func orderClause(sort string) string {
 	switch strings.ToLower(strings.TrimSpace(sort)) {
 	case "-name":
 		return "ORDER BY a.name DESC"
-	case "created_at":
-		return "ORDER BY a.created_at ASC"
-	case "-created_at":
-		return "ORDER BY a.created_at DESC"
 	case "name":
 		fallthrough
 	default:	

@@ -14,9 +14,6 @@ func TestOrderClause(t *testing.T) {
 		{"", "ORDER BY a.name ASC"},
 		{"name", "ORDER BY a.name ASC"},
 		{"-name", "ORDER BY a.name DESC"},
-		{"created_at", "ORDER BY a.created_at ASC"},
-		{"-created_at", "ORDER BY a.created_at DESC"},
-		{"   Created_At   ", "ORDER BY a.created_at ASC"},
 		{"WeIrD", "ORDER BY a.name ASC"},
 	}
 

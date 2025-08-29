@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/lib/pq"
+
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
-	"github.com/lib/pq"
 )
 
 type UserRepo struct {
@@ -17,7 +18,7 @@ type UserRepo struct {
 func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{db: db} }
 
 func (r *UserRepo) CreateUser(ctx context.Context, u entity.User) (int64, error) {
-	const q = `INSERT INTO users (email, pass_hash, registered_at)
+	const q = `INSERT INTO users (email, password_hash, registered_at)
 	           VALUES ($1, $2, NOW())
 	           RETURNING user_id`
 
@@ -33,7 +34,7 @@ func (r *UserRepo) CreateUser(ctx context.Context, u entity.User) (int64, error)
 }
 
 func (r *UserRepo) ByEmail(ctx context.Context, email string) (entity.User, error) {
-	const q = `SELECT user_id, email, pass_hash, registered_at
+	const q = `SELECT user_id, email, password_hash, registered_at
 	           FROM   users
 	           WHERE  email = $1`
 

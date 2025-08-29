@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -11,29 +12,29 @@ import (
 	"syscall"
 	"time"
 
-	"database/sql"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
+	"github.com/joho/godotenv"
+	"github.com/shopspring/decimal"
 
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/crypto"
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/delivery/rest"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/service"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/go-playground/validator/v10"
-	"github.com/joho/godotenv"
+
 	_ "github.com/lib/pq"
-	"github.com/shopspring/decimal"
 )
 
 func init() {
-    if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-        v.RegisterValidation("dec_gt0", func(fl validator.FieldLevel) bool {
-            d, ok := fl.Field().Interface().(decimal.Decimal)
-            if !ok {
-                return false
-            }
-            return d.GreaterThan(decimal.Zero)
-        })
-    }
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("dec_gt0", func(fl validator.FieldLevel) bool {
+			d, ok := fl.Field().Interface().(decimal.Decimal)
+			if !ok {
+				return false
+			}
+			return d.GreaterThan(decimal.Zero)
+		})
+	}
 }
 
 func main() {
@@ -67,14 +68,16 @@ func main() {
 	clkRepo := postgres.NewClicksRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	tokenRepo := postgres.NewTokensRepo(db)
+	adsRepo := postgres.NewAdsRepo(db)
 	hasher := crypto.NewBcryptHasher(bcryptCost)
 
 	metricsSvc := service.NewMetricsService(metricsRepo, userAdsRepo)
 	convSvc := service.NewConversionService(clkRepo, convRepo)
 	clkSvc := service.NewClickService(clkRepo)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, hasher, jwtSecret)
-	
-	handler := rest.NewHandler(authSvc, clkSvc, convSvc, metricsSvc)
+	adsSvc := service.NewAdsService(adsRepo)
+
+	handler := rest.NewHandler(authSvc, clkSvc, convSvc, metricsSvc, adsSvc)
 
 	// 4. HTTP-сервер + graceful shutdown
 	srv := &http.Server{

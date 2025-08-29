@@ -30,3 +30,6 @@ type UserAdsRepo interface {
 	Ensure(ctx context.Context, userID, adID int64) error
 }
 
+type AdsRepository interface {
+	ListByUser(ctx context.Context, userID int64, f entity.AdsFilter) (items []entity.Ad, total int, err error)
+}

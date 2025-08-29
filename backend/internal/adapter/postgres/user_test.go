@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/lib/pq"
+	"github.com/stretchr/testify/require"
+
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
-	"github.com/lib/pq"
-	"github.com/stretchr/testify/require"
 )
 
-func newRepoUser(t *testing.T) (*postgres.UserRepo, sqlmock.Sqlmock, func()){
+func newRepoUser(t *testing.T) (*postgres.UserRepo, sqlmock.Sqlmock, func()) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
 
@@ -29,8 +30,8 @@ func TestCreateUser(t *testing.T) {
 		u := entity.User{Email: "me@example.com", PassHash: "hash123hash456"}
 
 		mock.ExpectQuery(`INSERT INTO users`).
-					WithArgs(u.Email, u.PassHash).
-					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
+			WithArgs(u.Email, u.PassHash).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
 
 		id, err := repo.CreateUser(context.Background(), u)
 		require.NoError(t, err)
@@ -38,16 +39,16 @@ func TestCreateUser(t *testing.T) {
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	t.Run("duplicate email", func(t *testing.T){
+	t.Run("duplicate email", func(t *testing.T) {
 		repo, mock, done := newRepoUser(t)
 		defer done()
 
 		u := entity.User{Email: "me@example.com", PassHash: "hash123hash456"}
 
 		mock.ExpectQuery(`INSERT INTO users`).
-					WithArgs(u.Email, u.PassHash).
-					WillReturnError(&pq.Error{Code: "23505"})
-		
+			WithArgs(u.Email, u.PassHash).
+			WillReturnError(&pq.Error{Code: "23505"})
+
 		_, err := repo.CreateUser(context.Background(), u)
 		require.ErrorIs(t, err, errs.ErrEmailTaken)
 		require.NoError(t, mock.ExpectationsWereMet())
@@ -61,15 +62,15 @@ func TestByEmail(t *testing.T) {
 		defer done()
 
 		const (
-			id        = int64(42)
-			email     = "alice@example.com"
-			passHash  = "hash"
+			id       = int64(42)
+			email    = "alice@example.com"
+			passHash = "hash"
 		)
 		created := time.Now()
 
 		mock.ExpectQuery(`SELECT .* FROM\s+users`).
 			WithArgs(email).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "pass_hash", "created_at"}).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "email", "password_hash", "created_at"}).
 				AddRow(id, email, passHash, created))
 
 		u, err := repo.ByEmail(context.Background(), email)

@@ -28,6 +28,14 @@ CREATE TABLE
         UNIQUE (account_id, ad_id)
     );
 
+CREATE TABLE user_ads (
+    user_id BIGINT NOT NULL REFERENCES users (user_id) ON DELETE CASCADE,
+    ad_id   BIGINT NOT NULL REFERENCES ads   (ad_id)   ON DELETE CASCADE,
+    PRIMARY KEY (user_id, ad_id)
+);
+CREATE INDEX idx_user_ads_user_id ON user_ads(user_id);
+CREATE INDEX idx_user_ads_ad_id   ON user_ads(ad_id);
+
 CREATE TABLE
     clicks (
         id BIGSERIAL PRIMARY KEY,
@@ -93,6 +101,8 @@ DROP TABLE IF EXISTS conversions;
 DROP INDEX IF EXISTS idx_clicks_ad_time;
 
 DROP TABLE IF EXISTS clicks;
+
+DROP TABLE IF EXISTS user_ads;
 
 DROP TABLE IF EXISTS ads;
 

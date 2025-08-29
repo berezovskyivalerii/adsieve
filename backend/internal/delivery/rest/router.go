@@ -1,13 +1,17 @@
-	package rest
+// internal/delivery/rest/router.go
+package rest
 
 import (
 	"context"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
-	"github.com/gin-gonic/gin"
 )
+
+/* ===== сервисные интерфейсы ===== */
 
 type User interface {
 	SignUp(ctx context.Context, inp entity.SignInput) (string, string, error)
@@ -27,16 +31,26 @@ type Metrics interface {
 	Get(ctx context.Context, userID int64, f entity.MetricsFilter) ([]entity.DailyMetricDTO, error)
 }
 
-
-type Handler struct {
-	userSvc  User
-	clickSvc Click
-	convSvc Conversion
-	metricsSvc Metrics
+type Ads interface {
+	List(ctx context.Context, userID int64, f entity.AdsFilter) (items []entity.AdDTO, total int, err error)
 }
 
-func NewHandler(userSvc User, clickSvc Click, convSvc Conversion, metricsSvc Metrics) *Handler {
-	return &Handler{userSvc: userSvc, clickSvc: clickSvc, convSvc: convSvc, metricsSvc: metricsSvc}
+type Handler struct {
+	userSvc    User
+	clickSvc   Click
+	convSvc    Conversion
+	metricsSvc Metrics
+	adsSvc     Ads
+}
+
+func NewHandler(userSvc User, clickSvc Click, convSvc Conversion, metricsSvc Metrics, adsSvc Ads) *Handler {
+	return &Handler{
+		userSvc:    userSvc,
+		clickSvc:   clickSvc,
+		convSvc:    convSvc,
+		metricsSvc: metricsSvc,
+		adsSvc:     adsSvc,
+	}
 }
 
 func (h *Handler) Router(jwtSecret []byte) http.Handler {
@@ -44,7 +58,7 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	r.Use(gin.Logger(), gin.Recovery())
 
 	jwtAuth := mw.NewJWTAuth(jwtSecret)
-	
+
 	api := r.Group("/api")
 	{
 		auth := api.Group("/auth")
@@ -63,7 +77,5 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 			private.GET("/ads", h.ads)
 		}
 	}
-
-
 	return r
 }

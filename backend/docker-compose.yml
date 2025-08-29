@@ -47,5 +47,34 @@ services:
     volumes:
       - ./.env:/app/.env:ro
 
+  cron-sync-fb:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: adsieve-backend:latest
+    entrypoint: ["/bin/sh","-lc","while true; do /app/sync_fb_insights; sleep 3600; done"]
+    environment:
+      DB_DSN: ${DB_DSN}
+      MOCK_ADS: "101,102,103"
+      MOCK_DATE_SHIFT_DAYS: "0"
+      MOCK_SPEND_MIN: "5"
+      MOCK_SPEND_MAX: "50"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        
+  cron-aggregate:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: adsieve-backend:latest
+    entrypoint: ["/bin/sh","-lc","while true; do /app/aggregate_daily; sleep 3600; done"]
+    environment:
+      DB_DSN: ${DB_DSN}
+      SQL_FILE: /sql/aggregate_daily.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   db_data:

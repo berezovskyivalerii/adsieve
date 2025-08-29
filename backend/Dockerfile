@@ -1,18 +1,32 @@
-FROM golang:1.23-alpine AS builder
+# --- build stage ---
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+RUN apk add --no-cache git ca-certificates
 
-WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o adsieve ./cmd/api
+# api
+RUN CGO_ENABLED=0 go build -o /out/api ./cmd/api
+# cron: sync_fb_insights
+RUN CGO_ENABLED=0 go build -o /out/sync_fb_insights ./cmd/cron/sync_fb_insights
+# cron: aggregate_daily  <-- ДОБАВЬ ЭТУ СТРОКУ
+RUN CGO_ENABLED=0 go build -o /out/aggregate_daily ./cmd/cron/aggregate_daily
+# goose (если пользуешься)
+RUN GOBIN=/out go install github.com/pressly/goose/v3/cmd/goose@latest
 
+# --- runtime stage ---
 FROM alpine:3.20
 WORKDIR /app
-COPY --from=builder /app/adsieve .
+RUN adduser -D -h /app app && chown -R app:app /app
+USER app
 
-ENV PORT=8080
-ENV DATABASE_URL=postgres://adsieve:adsieve@postgres:5432/adsieve?sslmode=disable
+COPY --from=build /out/api /app/api
+COPY --from=build /out/sync_fb_insights /app/sync_fb_insights
+COPY --from=build /out/aggregate_daily /app/aggregate_daily
+COPY --from=build /out/goose /app/goose
+COPY sql /sql                                                
+COPY migrations /app/migrations
 
-EXPOSE 8080
-ENTRYPOINT ["./adsieve"]
+ENTRYPOINT ["/app/api"]

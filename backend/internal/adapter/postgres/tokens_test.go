@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
-	"github.com/stretchr/testify/require"
 )
 
 func newRepoTokens(t *testing.T) (*postgres.TokensRepo, sqlmock.Sqlmock, func()) {
@@ -70,7 +71,7 @@ func TestTokensRepo_Get(t *testing.T) {
 	expires := time.Now().Add(30 * time.Minute)
 
 	happyRows := sqlmock.NewRows(
-		[]string{"id", "user_id", "token", "expires_at"},
+		[]string{"token_id", "user_id", "token", "expires_at"},
 	).AddRow(rid, uid, raw, expires)
 
 	t.Run("happy path", func(t *testing.T) {
@@ -78,7 +79,7 @@ func TestTokensRepo_Get(t *testing.T) {
 		defer done()
 
 		mock.ExpectBegin()
-		mock.ExpectQuery(`SELECT id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
+		mock.ExpectQuery(`SELECT token_id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
 			WithArgs(raw).
 			WillReturnRows(happyRows)
 		mock.ExpectExec(`DELETE FROM refresh_tokens WHERE user_id =`).
@@ -128,4 +129,29 @@ func TestTokensRepo_Get(t *testing.T) {
 		_, err := repo.Get(context.Background(), raw)
 		require.Error(t, err)
 	})
+
+	t.Run("begin tx fails → error", func(t *testing.T) {
+		repo, mock, done := newRepoTokens(t)
+		defer done()
+
+		mock.ExpectBegin().WillReturnError(errors.New("begin failed"))
+
+		_, err := repo.Get(context.Background(), "whatever")
+		require.Error(t, err)
+	})
+
+	t.Run("select returns non-no-rows error → rollback", func(t *testing.T) {
+		repo, mock, done := newRepoTokens(t)
+		defer done()
+
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT token_id, user_id, refresh_token, expires_at FROM\s+refresh_tokens`).
+			WithArgs("toktoktok").
+			WillReturnError(errors.New("select failed"))
+		mock.ExpectRollback()
+
+		_, err := repo.Get(context.Background(), "toktoktok")
+		require.Error(t, err)
+	})
+
 }

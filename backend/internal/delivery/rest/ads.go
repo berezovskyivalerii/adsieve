@@ -11,16 +11,37 @@ import (
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 )
 
-// GET /api/ads
-// Query (все опц.): status=active|paused|all, platform=facebook|google, q=substr,
-// ad_id=1,2,3, page=1, page_size=50, sort=name|-name|created_at|-created_at
+type AdsListMeta struct {
+	Page     int  `json:"page"`
+	PageSize int  `json:"page_size"`
+	Total    int  `json:"total"`
+	HasMore  bool `json:"has_more"`
+}
+
+type AdsListResponse struct {
+	Items []entity.AdDTO `json:"items"`
+	Meta  AdsListMeta    `json:"meta"`
+}
+
+// @Summary     Список объявлений пользователя
+// @Description Возвращает объявления текущего пользователя с фильтрами, пагинацией и сортировкой.
+// @Tags        Ads
+// @Produce     json
+// @Security    BearerAuth
+// @Param       status     query   string  false  "Фильтр по статусу"        Enums(active,paused,all) default(all)
+// @Param       platform   query   string  false  "Платформа"                Enums(facebook,google)
+// @Param       q          query   string  false  "Подстрока для поиска по названию"
+// @Param       ad_id      query   []int64 false  "Список ad_id (CSV)"       collectionFormat(csv)
+// @Param       page       query   int     false  "Номер страницы (>=1)"     default(1)
+// @Param       page_size  query   int     false  "Размер страницы (1..200)" default(50)
+// @Param       sort       query   string  false  "Сортировка"               Enums(name,-name,created_at,-created_at) default(name)
+// @Success     200        {object}  AdsListResponse
+// @Failure     400        {object}  map[string]string  "invalid status | invalid ad_id list"
+// @Failure     401        {object}  map[string]string  "unauthorized"
+// @Failure     500        {object}  map[string]string  "internal error"
+// @Router      /ads [get]
 func (h *Handler) ads(c *gin.Context) {
-	uidVal, ok := c.Get("user_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	userID, ok := uidVal.(int64)
+	userID, ok := getUserID(c) // ← единый способ извлечь ID из контекста
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -33,8 +54,10 @@ func (h *Handler) ads(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status (use: all|active|paused)"})
 		return
 	}
+
 	platform := strings.ToLower(strings.TrimSpace(c.Query("platform"))) // "" | facebook | google
 	q := strings.TrimSpace(c.Query("q"))
+
 	adIDs, err := parseCSVInt64(c.Query("ad_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ad_id list"})
@@ -52,6 +75,7 @@ func (h *Handler) ads(c *gin.Context) {
 	if pageSize > 200 {
 		pageSize = 200
 	}
+
 	sort := c.DefaultQuery("sort", "name")
 	switch sort {
 	case "name", "-name", "created_at", "-created_at":
@@ -75,19 +99,52 @@ func (h *Handler) ads(c *gin.Context) {
 		return
 	}
 
-	hasMore := f.Offset+len(items) < total
-	c.JSON(http.StatusOK, gin.H{
-		"items": items, // []entity.AdDTO (ad_id, name, status, platform)
-		"meta": gin.H{
-			"page":      page,
-			"page_size": pageSize,
-			"total":     total,
-			"has_more":  hasMore,
+	resp := AdsListResponse{
+		Items: items,
+		Meta: AdsListMeta{
+			Page:     page,
+			PageSize: pageSize,
+			Total:    total,
+			HasMore:  f.Offset+len(items) < total,
 		},
-	})
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 /* ===== helpers ===== */
+
+const ctxUserKey = "userID"
+
+// getUserID достаёт userID из контекста, поддерживая оба ключа: "userID" и "user_id".
+func getUserID(c *gin.Context) (int64, bool) {
+	if id, ok := extractID(c, ctxUserKey); ok {
+		return id, true
+	}
+	if id, ok := extractID(c, "user_id"); ok {
+		return id, true
+	}
+	return 0, false
+}
+
+func extractID(c *gin.Context, key string) (int64, bool) {
+	v, ok := c.Get(key)
+	if !ok {
+		return 0, false
+	}
+	switch t := v.(type) {
+	case int64:
+		return t, true
+	case int:
+		return int64(t), true
+	case float64:
+		return int64(t), true
+	case string:
+		id, err := strconv.ParseInt(t, 10, 64)
+		return id, err == nil
+	default:
+		return 0, false
+	}
+}
 
 func parseCSVInt64(s string) ([]int64, error) {
 	if strings.TrimSpace(s) == "" {
@@ -126,4 +183,5 @@ func stringPtrIf(cond bool, v string) *string {
 	}
 	return &v
 }
+
 func statusIf(cond bool, v string) *string { return stringPtrIf(cond, v) }

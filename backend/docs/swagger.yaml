@@ -1,0 +1,457 @@
+basePath: /api
+definitions:
+  entity.AdDTO:
+    properties:
+      ad_id:
+        type: integer
+      name:
+        type: string
+      platform:
+        type: string
+      status:
+        type: string
+    type: object
+  rest.AdsListMeta:
+    properties:
+      has_more:
+        type: boolean
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  rest.AdsListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/entity.AdDTO'
+        type: array
+      meta:
+        $ref: '#/definitions/rest.AdsListMeta'
+    type: object
+  rest.clickReq:
+    properties:
+      ad_id:
+        type: integer
+      click_id:
+        type: string
+      clicked_at:
+        type: integer
+    required:
+    - ad_id
+    - click_id
+    - clicked_at
+    type: object
+  rest.conversionRequest:
+    properties:
+      click_id:
+        description: ID клика
+        type: string
+      converted_at:
+        description: Время совершения заказа
+        type: integer
+      order_id:
+        description: ID заказа в системе магазина
+        type: string
+      revenue:
+        description: Прибыль
+        type: number
+    required:
+    - click_id
+    - revenue
+    type: object
+  rest.refreshReq:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  rest.signReq:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@adsieve.com
+    name: AdSieve Dev Team
+    url: http://adsieve.example.com
+  description: Backend система AdSieve (MVP). API для трекинга кликов, конверсий и
+    аналитики.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: AdSieve API
+  version: "1.0"
+paths:
+  /ads:
+    get:
+      description: Возвращает объявления текущего пользователя с фильтрами, пагинацией
+        и сортировкой.
+      parameters:
+      - default: all
+        description: Фильтр по статусу
+        enum:
+        - active
+        - paused
+        - all
+        in: query
+        name: status
+        type: string
+      - description: Платформа
+        enum:
+        - facebook
+        - google
+        in: query
+        name: platform
+        type: string
+      - description: Подстрока для поиска по названию
+        in: query
+        name: q
+        type: string
+      - collectionFormat: csv
+        description: Список ad_id (CSV)
+        in: query
+        items:
+          format: int64
+          type: integer
+        name: ad_id
+        type: array
+      - default: 1
+        description: Номер страницы (>=1)
+        in: query
+        name: page
+        type: integer
+      - default: 50
+        description: Размер страницы (1..200)
+        in: query
+        name: page_size
+        type: integer
+      - default: name
+        description: Сортировка
+        enum:
+        - name
+        - -name
+        - created_at
+        - -created_at
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.AdsListResponse'
+        "400":
+          description: invalid status | invalid ad_id list
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Список объявлений пользователя
+      tags:
+      - Ads
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Принимает refresh_token и выдает новую пару токенов (access + refresh).
+      parameters:
+      - description: Тело запроса с refresh_token
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/rest.refreshReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: access_token, refresh_token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: bad request / валидация входных данных
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized (refresh токен недействителен/просрочен)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновление access-токена по refresh-токену
+      tags:
+      - Auth
+  /auth/sign-in:
+    post:
+      consumes:
+      - application/json
+      description: Аутентифицирует по email и паролю. Возвращает access и refresh
+        токены.
+      parameters:
+      - description: Данные входа (email, password)
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/rest.signReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: access_token, refresh_token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: bad request / валидация входных данных
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized (неверные учетные данные)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Логин пользователя
+      tags:
+      - Auth
+  /auth/sign-up:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового рекламодателя и сразу возвращает пару токенов (access
+        + refresh).
+      parameters:
+      - description: Данные регистрации (email, password)
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/rest.signReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: access_token, refresh_token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: bad request / валидация входных данных
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: email_already_registered
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация пользователя
+      tags:
+      - Auth
+  /click:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Публичный эндпоинт. Принимает событие клика по объявлению и сохраняет в БД.
+        Поля: click_id (уникально), ad_id (ID объявления), clicked_at (UNIX UTC).
+      parameters:
+      - description: Данные клика
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/rest.clickReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 'Пример: {\"click_id\": 12345}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: bad request / валидация
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: click_already_registered
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация клика
+      tags:
+      - Tracking
+  /conversion:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Публичный эндпоинт. Принимает конверсию, связанную с ранее зарегистрированным кликом (по click_id).
+        Поля:
+        - click_id (required) — ID клика, который уже существует в БД
+        - revenue  (required, >0) — сумма заказа/ценность конверсии
+        - order_id (optional) — ID заказа в магазине (для дедупликации)
+        - converted_at (optional) — UNIX-таймстамп, когда произошла конверсия
+      parameters:
+      - description: Данные конверсии
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/rest.conversionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 'Пример: {\"conversion_id\": 12345}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: bad request / валидация входных данных
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: click_no_found — клик по такому click_id не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: conversion_already_registered — конверсия с таким order_id
+            уже учтена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Регистрация конверсии (заказа)
+      tags:
+      - Tracking
+  /metrics:
+    get:
+      description: Возвращает суточные метрики (clicks, conversions, revenue, spend,
+        CPA, ROAS) только для объявлений текущего пользователя. Можно фильтровать
+        по диапазону дат и по ad_id.
+      parameters:
+      - description: Дата начала (включительно), формат YYYY-MM-DD
+        in: query
+        name: from
+        type: string
+      - description: Дата окончания (включительно), формат YYYY-MM-DD
+        in: query
+        name: to
+        type: string
+      - collectionFormat: csv
+        description: Список ad_id для фильтрации (через запятую), напр. ad_id=123,456
+        in: query
+        items:
+          type: string
+        name: ad_id
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Список дневных метрик; поля: ad_id,date,clicks,conversions,revenue,spend,CPA,ROAS,name,status'
+          schema:
+            items:
+              type: object
+            type: array
+        "400":
+          description: invalid_date_range | bad_ad_id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: ad_not_found (нет доступа к указанному ad_id)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение агрегированных метрик по объявлениям
+      tags:
+      - Analytics
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

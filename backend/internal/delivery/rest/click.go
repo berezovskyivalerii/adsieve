@@ -3,9 +3,10 @@ package rest
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
-	"github.com/gin-gonic/gin"
 )
 
 type clickReq struct {
@@ -14,7 +15,18 @@ type clickReq struct {
 	ClickedAt int64  `json:"clicked_at" binding:"required"`
 }
 
-// Регистрация клика, сохранение в БД
+// @Summary     Регистрация клика
+// @Description Публичный эндпоинт. Принимает событие клика по объявлению и сохраняет в БД.
+// @Description Поля: click_id (уникально), ad_id (ID объявления), clicked_at (UNIX UTC).
+// @Tags        Tracking
+// @Accept      json
+// @Produce     json
+// @Param       input  body   clickReq  true  "Данные клика"
+// @Success     201    {object}  map[string]interface{}  "Пример: {\"click_id\": 12345}"
+// @Failure     400    {object}  map[string]string       "bad request / валидация"
+// @Failure     409    {object}  map[string]string       "click_already_registered"
+// @Failure     500    {object}  map[string]string       "internal error"
+// @Router      /click [post]
 func (h *Handler) click(c *gin.Context) {
 	var req clickReq
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -1,4 +1,3 @@
-// internal/delivery/rest/router.go
 package rest
 
 import (
@@ -6,9 +5,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"    
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
+
+	_ "github.com/berezovskyivalerii/adsieve/docs"
+
 )
 
 /* ===== сервисные интерфейсы ===== */
@@ -58,6 +62,15 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	r.Use(gin.Logger(), gin.Recovery())
 
 	jwtAuth := mw.NewJWTAuth(jwtSecret)
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.URL("/swagger/doc.json"),
+	))
+	r.GET("/api/swagger/*any", ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.URL("/api/swagger/doc.json"),
+	))
 
 	api := r.Group("/api")
 	{

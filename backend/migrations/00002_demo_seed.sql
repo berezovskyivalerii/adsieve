@@ -1,11 +1,19 @@
 -- +goose Up
 -- Demo seed: user + ad_account + ads (101/102/103) + user_ads
--- ВНИМАНИЕ: password_hash сейчас 'stub'. Для реального логина подставь bcrypt-хеш.
+-- Пароль хранится в bcrypt (через pgcrypto). Логин: testuser@adsieve.local / superpass
 
--- 1) ensure demo user
+-- убедимся, что есть расширение для bcrypt
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1) demo user (idempotent): если записи нет — создаём с bcrypt;
+--    если запись есть, а пароль не bcrypt — перехэшируем.
 INSERT INTO users (email, password_hash)
-VALUES ('testuser@adsieve.local', 'superpass')
-ON CONFLICT (email) DO NOTHING;
+VALUES ('testuser@adsieve.local', crypt('superpass', gen_salt('bf', 12)))
+ON CONFLICT (email) DO UPDATE
+SET password_hash = CASE
+  WHEN users.password_hash ~ '^\$2[abxy]\$' THEN users.password_hash  -- уже bcrypt → не трогаем
+  ELSE crypt('superpass', gen_salt('bf', 12))                          -- был "stub"/plain → хэшируем
+END;
 
 -- 2) ensure ad_account 'facebook/acc_demo'
 INSERT INTO ad_accounts (user_id, platform, external_account_id, access_token)

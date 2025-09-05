@@ -3,9 +3,10 @@ package rest
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
-	"github.com/gin-gonic/gin"
 )
 
 type signReq struct {
@@ -17,6 +18,17 @@ type refreshReq struct {
 	Refresh string `json:"refresh_token" binding:"required"`
 }
 
+// @Summary     Регистрация пользователя
+// @Description Создаёт нового рекламодателя и сразу возвращает пару токенов (access + refresh).
+// @Tags        Auth
+// @Accept      json
+// @Produce     json
+// @Param       input  body   signReq  true  "Данные регистрации (email, password)"
+// @Success     201    {object}  map[string]string  "access_token, refresh_token"
+// @Failure     400    {object}  map[string]string  "bad request / валидация входных данных"
+// @Failure     409    {object}  map[string]string  "email_already_registered"
+// @Failure     500    {object}  map[string]string  "internal error"
+// @Router      /auth/sign-up [post]
 func (h *Handler) signUp(c *gin.Context) {
 	var user signReq
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -43,6 +55,16 @@ func (h *Handler) signUp(c *gin.Context) {
 	}
 }
 
+// @Summary     Логин пользователя
+// @Description Аутентифицирует по email и паролю. Возвращает access и refresh токены.
+// @Tags        Auth
+// @Accept      json
+// @Produce     json
+// @Param       input  body   signReq  true  "Данные входа (email, password)"
+// @Success     200    {object}  map[string]string  "access_token, refresh_token"
+// @Failure     400    {object}  map[string]string  "bad request / валидация входных данных"
+// @Failure     401    {object}  map[string]string  "unauthorized (неверные учетные данные)"
+// @Router      /auth/sign-in [post]
 func (h *Handler) signIn(c *gin.Context) {
 	var req signReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -65,6 +87,16 @@ func (h *Handler) signIn(c *gin.Context) {
 	})
 }
 
+// @Summary     Обновление access-токена по refresh-токену
+// @Description Принимает refresh_token и выдает новую пару токенов (access + refresh).
+// @Tags        Auth
+// @Accept      json
+// @Produce     json
+// @Param       input  body   refreshReq  true  "Тело запроса с refresh_token"
+// @Success     200    {object}  map[string]string  "access_token, refresh_token"
+// @Failure     400    {object}  map[string]string  "bad request / валидация входных данных"
+// @Failure     401    {object}  map[string]string  "unauthorized (refresh токен недействителен/просрочен)"
+// @Router      /auth/refresh [post]
 func (h *Handler) refresh(c *gin.Context) {
 	var req refreshReq
 	if err := c.ShouldBindJSON(&req); err != nil {

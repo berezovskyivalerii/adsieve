@@ -7,6 +7,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+RUN swag init -g ./cmd/api/main.go -o ./docs -d .
+
 # api
 RUN CGO_ENABLED=0 go build -o /out/api ./cmd/api
 # cron: sync_fb_insights

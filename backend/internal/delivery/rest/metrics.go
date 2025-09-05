@@ -7,19 +7,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
 	errs "github.com/berezovskyivalerii/adsieve/internal/domain/errors"
-	"github.com/gin-gonic/gin"
 )
 
-/*
-GET /api/metrics?ad_id=87,91&from=2025-07-01&to=2025-07-19
-Headers: Authorization: Bearer <JWT>
-
-Поведение:
-  - Если query-параметры отсутствуют, отдаём «с 1-го числа текущего месяца до вчера».
-  - ad_id может быть пустым или списком через запятую.
-*/
+// @Summary     Получение агрегированных метрик по объявлениям
+// @Description Возвращает суточные метрики (clicks, conversions, revenue, spend, CPA, ROAS) только для объявлений текущего пользователя. Можно фильтровать по диапазону дат и по ad_id.
+// @Tags        Analytics
+// @Produce     json
+// @Security    BearerAuth
+// @Param       from   query   string     false  "Дата начала (включительно), формат YYYY-MM-DD"
+// @Param       to     query   string     false  "Дата окончания (включительно), формат YYYY-MM-DD"
+// @Param       ad_id  query   []string   false  "Список ad_id для фильтрации (через запятую), напр. ad_id=123,456"
+// @Success     200    {array} object     "Список дневных метрик; поля: ad_id,date,clicks,conversions,revenue,spend,CPA,ROAS,name,status"
+// @Failure     400    {object} map[string]string  "invalid_date_range | bad_ad_id"
+// @Failure     401    {object} map[string]string  "unauthorized"
+// @Failure     404    {object} map[string]string  "ad_not_found (нет доступа к указанному ad_id)"
+// @Failure     500    {object} map[string]string  "internal error"
+// @Router      /metrics [get]
 func (h *Handler) metrics(c *gin.Context) {
 	userID, ok := c.Get("userID")
 	if !ok {

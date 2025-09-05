@@ -1,3 +1,21 @@
+// @title           AdSieve API
+// @version         1.0
+// @description     Backend система AdSieve (MVP). API для трекинга кликов, конверсий и аналитики.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   AdSieve Dev Team
+// @contact.url    http://adsieve.example.com
+// @contact.email  support@adsieve.com
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (

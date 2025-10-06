@@ -21,7 +21,7 @@ import (
 
 const (
 	defaultBaseURL = "http://localhost:8080"
-	testAdID = int64(101)
+	testAdID       = int64(101)
 )
 
 // --------- DTOs ---------

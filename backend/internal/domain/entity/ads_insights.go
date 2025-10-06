@@ -7,7 +7,7 @@ import (
 )
 
 type AdsInsight struct {
-	AdID        int64           `json:"ad_id"        db:"ad_id"`       
+	AdID        int64           `json:"ad_id"        db:"ad_id"`
 	InsightDate time.Time       `json:"insight_date" db:"insight_date"`
-	Spend       decimal.Decimal `json:"spend"        db:"spend"`       
+	Spend       decimal.Decimal `json:"spend"        db:"spend"`
 }

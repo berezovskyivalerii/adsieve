@@ -1,76 +1,63 @@
 package rest
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"    
+	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"golang.org/x/oauth2"
 
 	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
-	"github.com/berezovskyivalerii/adsieve/internal/domain/entity"
-
-	_ "github.com/berezovskyivalerii/adsieve/docs"
-
+	"github.com/berezovskyivalerii/adsieve/internal/domain/ports"
 )
 
-/* ===== сервисные интерфейсы ===== */
-
-type User interface {
-	SignUp(ctx context.Context, inp entity.SignInput) (string, string, error)
-	SignIn(ctx context.Context, in entity.SignInput) (string, string, error)
-	Refresh(ctx context.Context, refreshToken string) (string, string, error)
-}
-
-type Click interface {
-	Click(ctx context.Context, clk entity.ClickInput) (int64, error)
-}
-
-type Conversion interface {
-	Create(ctx context.Context, in entity.ConversionInput) (int64, error)
-}
-
-type Metrics interface {
-	Get(ctx context.Context, userID int64, f entity.MetricsFilter) ([]entity.DailyMetricDTO, error)
-}
-
-type Ads interface {
-	List(ctx context.Context, userID int64, f entity.AdsFilter) (items []entity.AdDTO, total int, err error)
-}
-
 type Handler struct {
-	userSvc    User
-	clickSvc   Click
-	convSvc    Conversion
-	metricsSvc Metrics
-	adsSvc     Ads
+	userSvc    ports.User
+	clickSvc   ports.Click
+	convSvc    ports.Conversion
+	metricsSvc ports.Metrics
+	adsSvc     ports.Ads
+
+	// интеграции Google
+	oauthStates ports.OAuthStateStore
+	tokenVault  ports.TokenVault
+	gadsClient  ports.GoogleAdsClient
+	oauthCfg    *oauth2.Config
 }
 
-func NewHandler(userSvc User, clickSvc Click, convSvc Conversion, metricsSvc Metrics, adsSvc Ads) *Handler {
+func NewHandler(
+	userSvc ports.User,
+	clickSvc ports.Click,
+	convSvc ports.Conversion,
+	metricsSvc ports.Metrics,
+	adsSvc ports.Ads,
+	oauthStates ports.OAuthStateStore,
+	tokenVault ports.TokenVault,
+	gadsClient ports.GoogleAdsClient,
+	oauthCfg *oauth2.Config,
+) *Handler {
 	return &Handler{
 		userSvc:    userSvc,
 		clickSvc:   clickSvc,
 		convSvc:    convSvc,
 		metricsSvc: metricsSvc,
 		adsSvc:     adsSvc,
+
+		oauthStates: oauthStates,
+		tokenVault:  tokenVault,
+		gadsClient:  gadsClient,
+		oauthCfg:    oauthCfg,
 	}
 }
 
 func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
-
 	jwtAuth := mw.NewJWTAuth(jwtSecret)
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(
-		swaggerFiles.Handler,
-		ginSwagger.URL("/swagger/doc.json"),
-	))
-	r.GET("/api/swagger/*any", ginSwagger.WrapHandler(
-		swaggerFiles.Handler,
-		ginSwagger.URL("/api/swagger/doc.json"),
-	))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/swagger/doc.json")))
+	r.GET("/api/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/api/swagger/doc.json")))
 
 	api := r.Group("/api")
 	{
@@ -90,5 +77,14 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 			private.GET("/ads", h.ads)
 		}
 	}
+
+	r.POST("/integrations/google/connect", jwtAuth.Middleware(), h.googleConnect)
+	// public
+	r.GET("/integrations/google/callback", h.googleCallback)
+
+	// private
+	r.GET("/integrations/google/accounts", jwtAuth.Middleware(), h.googleAccounts)
+	r.POST("/integrations/google/link-accounts", jwtAuth.Middleware(), h.googleLinkAccounts)
+
 	return r
 }

@@ -19,9 +19,9 @@ type AdDTO struct {
 
 // Фильтр списка объявлений
 type AdsFilter struct {
-	Status   *string 
-	Platform *string 
-	Query    *string 
+	Status   *string
+	Platform *string
+	Query    *string
 	AdIDs    []int64
 	Limit    int
 	Offset   int

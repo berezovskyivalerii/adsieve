@@ -29,20 +29,20 @@ const listSQL = `
 	ORDER BY ad_id
 `
 
-func (r *UserAdsRepo) IDsByUser(ctx context.Context, userID int64) ([]int64, error){
+func (r *UserAdsRepo) IDsByUser(ctx context.Context, userID int64) ([]int64, error) {
 	rows, err := r.db.QueryContext(ctx, listSQL, userID)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    ids := make([]int64, 0, 8)
-    for rows.Next() {
-        var id int64
-        if err := rows.Scan(&id); err != nil {
-            return nil, err
-        }
-        ids = append(ids, id)
-    }
-    return ids, rows.Err()
+	ids := make([]int64, 0, 8)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

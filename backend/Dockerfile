@@ -1,5 +1,5 @@
 # --- build stage ---
-FROM golang:1.23-alpine AS build
+FROM golang:1.24.0-alpine AS build
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates
 
@@ -30,7 +30,7 @@ COPY --from=build /out/api /app/api
 COPY --from=build /out/sync_fb_insights /app/sync_fb_insights
 COPY --from=build /out/aggregate_daily /app/aggregate_daily
 COPY --from=build /out/goose /app/goose
-COPY sql /sql                                                
+COPY sql /sql
 COPY migrations /app/migrations
 
 ENTRYPOINT ["/app/api"]

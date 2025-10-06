@@ -1,18 +1,16 @@
+// cmd/main.go
+
 // @title           AdSieve API
 // @version         1.0
 // @description     Backend система AdSieve (MVP). API для трекинга кликов, конверсий и аналитики.
 // @termsOfService  http://swagger.io/terms/
-
 // @contact.name   AdSieve Dev Team
 // @contact.url    http://adsieve.example.com
 // @contact.email  support@adsieve.com
-
 // @license.name  MIT
 // @license.url   https://opensource.org/licenses/MIT
-
 // @host      localhost:8080
 // @BasePath  /api
-
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
@@ -34,11 +32,14 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/shopspring/decimal"
+	"golang.org/x/oauth2"
 
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/crypto"
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/delivery/rest"
+	"github.com/berezovskyivalerii/adsieve/internal/domain/ports"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/service"
+	"github.com/berezovskyivalerii/adsieve/internal/shared/googleoauth"
 
 	_ "github.com/lib/pq"
 )
@@ -60,13 +61,23 @@ func main() {
 		log.Printf(".env not found: %v (ignored)", err)
 	}
 
-	// 1. Чтение переменных окружения
+	// ============= 1) ENV =============
 	dsn := mustEnv("DB_DSN")
 	jwtSecret := []byte(mustEnv("JWT_SECRET"))
 	httpPort := getenv("PORT", "8080")
 	bcryptCost := atoi(getenv("BCRYPT_COST", ""))
 
-	// 2. Подключение к базе
+	// Google OAuth env (не обязательны для старта сервера)
+	gcfg := googleoauth.Load()
+	var oauthCfg *oauth2.Config
+	if gcfg.ClientID != "" && gcfg.ClientSecret != "" && gcfg.RedirectURL != "" {
+		oauthCfg = googleoauth.OAuth2(gcfg)
+		log.Printf("Google OAuth configured: redirect=%s", gcfg.RedirectURL)
+	} else {
+		log.Printf("Google OAuth skipped: GOOGLE_CLIENT_ID/SECRET/REDIRECT_URL not set")
+	}
+
+	// ============= 2) DB =============
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf("DB open: %v", err)
@@ -79,7 +90,8 @@ func main() {
 		log.Fatalf("DB ping: %v", err)
 	}
 
-	// 3. Сборка зависимостей
+	// ============= 3) WIRING =============
+	// репозитории
 	userAdsRepo := postgres.NewUserAdsRepo(db)
 	metricsRepo := postgres.NewMetricsRepo(db)
 	convRepo := postgres.NewConversionRepo(db)
@@ -88,16 +100,42 @@ func main() {
 	tokenRepo := postgres.NewTokensRepo(db)
 	adsRepo := postgres.NewAdsRepo(db)
 	hasher := crypto.NewBcryptHasher(bcryptCost)
+	stateRepo := postgres.NewOAuthStateRepo(db, 10*time.Minute)
+	aead, err := crypto.NewAEADEncryptor(mustEnv("ENC_KEY"))
+	if err != nil {
+		log.Fatalf("encryptor: %v", err)
+	}
+	vaultRepo := postgres.NewTokenVault(db, aead)
+	//adAccRepo := postgres.NewGoogleAdAccountsRepo(db)
 
+	// доменные сервисы
 	metricsSvc := service.NewMetricsService(metricsRepo, userAdsRepo)
 	convSvc := service.NewConversionService(clkRepo, convRepo)
 	clkSvc := service.NewClickService(clkRepo)
 	authSvc := service.NewAuthService(userRepo, tokenRepo, hasher, jwtSecret)
 	adsSvc := service.NewAdsService(adsRepo)
 
-	handler := rest.NewHandler(authSvc, clkSvc, convSvc, metricsSvc, adsSvc)
+	// === Google интеграции (порты) ===
+	var (
+		oauthStates ports.OAuthStateStore = stateRepo // TODO: замените на adapter.NewOAuthStateRepo(db)
+		tokenVault  ports.TokenVault      = vaultRepo // TODO: замените на adapter.NewTokenVault(db, kms/crypto)
+		gadsClient  ports.GoogleAdsClient = nil       // TODO: замените на adapter.NewGoogleAdsClient(gcfg, db, ...)
+	)
 
-	// 4. HTTP-сервер + graceful shutdown
+	// delivery
+	handler := rest.NewHandler(
+		authSvc,
+		clkSvc,
+		convSvc,
+		metricsSvc,
+		adsSvc,
+		oauthStates,
+		tokenVault,
+		gadsClient,
+		oauthCfg,
+	)
+
+	// ============= 4) HTTP server =============
 	srv := &http.Server{
 		Addr:         ":" + httpPort,
 		Handler:      handler.Router(jwtSecret),
@@ -113,7 +151,7 @@ func main() {
 		}
 	}()
 
-	// ждём SIGINT/SIGTERM
+	// graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

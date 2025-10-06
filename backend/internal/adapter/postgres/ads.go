@@ -100,7 +100,7 @@ func orderClause(sort string) string {
 		return "ORDER BY a.name DESC"
 	case "name":
 		fallthrough
-	default:	
+	default:
 		return "ORDER BY a.name ASC"
 	}
 }

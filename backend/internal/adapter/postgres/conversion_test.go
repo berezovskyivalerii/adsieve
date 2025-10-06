@@ -160,7 +160,6 @@ func TestConversionRepo_GetByOrderID_happy_path(t *testing.T) {
 	require.Equal(t, parsedRef, *got.ClickRef)
 }
 
-
 func TestConversionRepo_GetByOrderID_not_found(t *testing.T) {
 	repo, mock, done := newConversionRepo(t)
 	defer done()

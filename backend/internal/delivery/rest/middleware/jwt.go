@@ -64,7 +64,7 @@ func (a *JWTAuth) Middleware() gin.HandlerFunc {
 
 		// 3. Кладём userID в контекст и пропускаем дальше
 		c.Set("userID", userID)
-		c.Set("user_id", userID) 
+		c.Set("user_id", userID)
 		c.Next()
 	}
 }

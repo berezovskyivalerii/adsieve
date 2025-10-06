@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+
+	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 )
 
 func TestJWTMiddleware_ValidToken(t *testing.T) {
@@ -19,6 +20,7 @@ func TestJWTMiddleware_ValidToken(t *testing.T) {
 	// генерируем токен с sub=42 и exp через 1ч
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, mw.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   "42",
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
 	})

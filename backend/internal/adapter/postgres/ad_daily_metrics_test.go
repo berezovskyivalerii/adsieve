@@ -250,8 +250,8 @@ func TestMetricsRepo_List_RevenueSpendAsString(t *testing.T) {
 
 	require.Equal(t, int64(101), got[0].AdID)
 	require.Equal(t, from, got[0].MetricDate)
-	require.Equal(t, 7, got[0].Clicks)          // Clicks — int в сущности
-	require.Equal(t, 3, got[0].Conversions)     // Conversions — int в сущности
+	require.Equal(t, 7, got[0].Clicks)      // Clicks — int в сущности
+	require.Equal(t, 3, got[0].Conversions) // Conversions — int в сущности
 
 	wantRev, _ := decimal.NewFromString("123.45")
 	wantSpend, _ := decimal.NewFromString("67.89")

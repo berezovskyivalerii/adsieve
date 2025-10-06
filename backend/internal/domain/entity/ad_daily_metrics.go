@@ -8,8 +8,8 @@ import (
 
 type AdDailyMetric struct {
 	AdID        int64           `json:"ad_id"        db:"ad_id"         validate:"required,gt=0"`
-	Name        string          `json:"name"   		 db:"name"`
-	Status      string          `json:"status" 		 db:"status"`
+	Name        string          `json:"name"   		   db:"name"`
+	Status      string          `json:"status" 		   db:"status"`
 	MetricDate  time.Time       `json:"metric_date"  db:"metric_date"`
 	Clicks      int             `json:"clicks"       db:"clicks"`
 	Conversions int             `json:"conversions"  db:"conversions"`

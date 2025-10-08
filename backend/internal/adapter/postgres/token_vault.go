@@ -8,9 +8,8 @@ import (
 )
 
 type Encryptor interface {
-	EncryptString(ctx context.Context, plain string) (string, error)
-	// Если у тебя уже есть DecryptString — можно добавить сюда и использовать в TokenSource.
-	// DecryptString(ctx context.Context, cipher string) (string, error)
+    EncryptString(ctx context.Context, plain string) (string, error)
+    DecryptString(ctx context.Context, cipher string) (string, error)
 }
 
 type TokenVaultRepo struct {
@@ -91,4 +90,13 @@ WHERE user_id = $1 AND google_user_id = $2`
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func (r *TokenVaultRepo) LoadRefreshToken(ctx context.Context, userID int64) (googleUserID, refreshTokenEnc, scope string, err error) {
+	return r.LoadGoogleRefreshToken(ctx, userID)
+}
+
+func (r *TokenVaultRepo) Decrypt(cipher string) (string, error) {
+	// enc — твой AES-GCM, уже есть EncryptString; тут нужна обратная сторона
+	return r.enc.DecryptString(context.Background(), cipher)
 }

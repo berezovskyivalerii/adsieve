@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+type linkRepo interface {
+    LinkGoogleAccounts(ctx context.Context, userID int64, tokenOwnerGoogleUserID string, customerIDs []string) error
+}
+
 type TokenSource interface {
 	Token(ctx context.Context, userID int64) (accessToken string, googleUserID string, err error)
 	MarkNeedsConsent(ctx context.Context, userID int64, googleUserID string) error
@@ -19,19 +23,20 @@ type TokenSource interface {
 type Client struct {
 	http        *http.Client
 	devToken    string
-	loginMCC    string // может быть пустым
+	loginMCC    string 
 	tokenSource TokenSource
-	base        string // "https://googleads.googleapis.com/v18"
+	base        string 
 	retries     int
+	repo 		linkRepo
 }
 
 func New(devToken, loginMCC string, ts TokenSource) *Client {
 	return &Client{
 		http: &http.Client{ Timeout: 15 * time.Second },
 		devToken: devToken,
-		loginMCC: strings.ReplaceAll(loginMCC, "-", ""), // Google предпочитает без дефисов
+		loginMCC: strings.ReplaceAll(loginMCC, "-", ""),
 		tokenSource: ts,
-		base: "https://googleads.googleapis.com/v18",
+		base: "https://googleads.googleapis.com/v21",
 		retries: 3,
 	}
 }
@@ -171,6 +176,18 @@ WHERE segments.date = '` + yyyymmdd + `'`
 		}
 	}
 	return nil
+}
+
+func (c *Client) LinkAccounts(ctx context.Context, userID int64, customerIDs []string) error {
+    if len(customerIDs) == 0 {
+        return nil
+    }
+    // Получим google_user_id владельца токена через TokenSource
+    _, googleUID, err := c.tokenSource.Token(ctx, userID)
+    if err != nil {
+        return err
+    }
+    return c.repo.LinkGoogleAccounts(ctx, userID, googleUID, customerIDs)
 }
 
 func jsonQuoted(s string) string {

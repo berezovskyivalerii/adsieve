@@ -35,6 +35,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/crypto"
+	"github.com/berezovskyivalerii/adsieve/internal/adapter/googleads"
 	"github.com/berezovskyivalerii/adsieve/internal/adapter/postgres"
 	"github.com/berezovskyivalerii/adsieve/internal/delivery/rest"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/ports"
@@ -43,6 +44,8 @@ import (
 
 	_ "github.com/lib/pq"
 )
+
+type oauthCfgWrapper struct{ cfg *oauth2.Config }
 
 func init() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
@@ -67,7 +70,7 @@ func main() {
 	httpPort := getenv("PORT", "8080")
 	bcryptCost := atoi(getenv("BCRYPT_COST", ""))
 
-	// Google OAuth env (не обязательны для старта сервера)
+	// Google OAuth env
 	gcfg := googleoauth.Load()
 	var oauthCfg *oauth2.Config
 	if gcfg.ClientID != "" && gcfg.ClientSecret != "" && gcfg.RedirectURL != "" {
@@ -76,6 +79,9 @@ func main() {
 	} else {
 		log.Printf("Google OAuth skipped: GOOGLE_CLIENT_ID/SECRET/REDIRECT_URL not set")
 	}
+	// Google Ads env
+	devToken := getenv("GOOGLE_DEVELOPER_TOKEN", "")
+	loginCID := getenv("GOOGLE_LOGIN_CUSTOMER_ID", "") // может быть пустым
 
 	// ============= 2) DB =============
 	db, err := sql.Open("postgres", dsn)
@@ -99,14 +105,16 @@ func main() {
 	userRepo := postgres.NewUserRepo(db)
 	tokenRepo := postgres.NewTokensRepo(db)
 	adsRepo := postgres.NewAdsRepo(db)
+
 	hasher := crypto.NewBcryptHasher(bcryptCost)
 	stateRepo := postgres.NewOAuthStateRepo(db, 10*time.Minute)
+
 	aead, err := crypto.NewAEADEncryptor(mustEnv("ENC_KEY"))
 	if err != nil {
 		log.Fatalf("encryptor: %v", err)
 	}
 	vaultRepo := postgres.NewTokenVault(db, aead)
-	//adAccRepo := postgres.NewGoogleAdAccountsRepo(db)
+	adAccRepo := postgres.NewGoogleAdAccountsRepo(db)
 
 	// доменные сервисы
 	metricsSvc := service.NewMetricsService(metricsRepo, userAdsRepo)
@@ -115,12 +123,27 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, tokenRepo, hasher, jwtSecret)
 	adsSvc := service.NewAdsService(adsRepo)
 
-	// === Google интеграции (порты) ===
+	// === Google интеграции ===
 	var (
-		oauthStates ports.OAuthStateStore = stateRepo // TODO: замените на adapter.NewOAuthStateRepo(db)
-		tokenVault  ports.TokenVault      = vaultRepo // TODO: замените на adapter.NewTokenVault(db, kms/crypto)
-		gadsClient  ports.GoogleAdsClient = nil       // TODO: замените на adapter.NewGoogleAdsClient(gcfg, db, ...)
+		oauthStates ports.OAuthStateStore = stateRepo
+		tokenVault  ports.TokenVault      = vaultRepo
+		gadsClient  ports.GoogleAdsClient
+		googleSync  rest.GoogleSync
 	)
+
+	if oauthCfg != nil && devToken != "" {
+		ts := googleads.NewTokenSource(vaultRepo, oauthCfgWrapper{cfg: oauthCfg})
+		gads := googleads.New(devToken, loginCID, ts)
+		gadsClient = &gadsPortsAdapter{
+			core:  gads,
+			vault: vaultRepo,
+			repo:  adAccRepo,
+		}
+
+		googleSync = service.NewGoogleSync(gads, adAccRepo)
+	} else {
+		log.Fatal("Google Ads not configured: set GOOGLE_CLIENT_ID/SECRET/REDIRECT_URL and GOOGLE_DEVELOPER_TOKEN")
+	}
 
 	// delivery
 	handler := rest.NewHandler(
@@ -133,6 +156,7 @@ func main() {
 		tokenVault,
 		gadsClient,
 		oauthCfg,
+		googleSync,
 	)
 
 	// ============= 4) HTTP server =============
@@ -163,6 +187,36 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 	log.Println("⇨ Server stopped")
+}
+
+type gadsPortsAdapter struct {
+	core interface {
+		ListAccessibleCustomers(ctx context.Context, userID int64) ([]string, string, error)
+	}
+	vault interface {
+		LoadRefreshToken(ctx context.Context, userID int64) (googleUserID, refreshTokenEnc, scope string, err error)
+	}
+	repo interface {
+		LinkGoogleAccounts(ctx context.Context, userID int64, tokenOwnerGoogleUserID string, customerIDs []string) error
+	}
+}
+
+func (a *gadsPortsAdapter) ListAccessibleCustomers(ctx context.Context, userID int64) ([]string, error) {
+	ids, _, err := a.core.ListAccessibleCustomers(ctx, userID) // игнорируем googleUID
+	return ids, err
+}
+
+func (a *gadsPortsAdapter) LinkAccounts(ctx context.Context, userID int64, customerIDs []string) error {
+	googleUID, _, _, err := a.vault.LoadRefreshToken(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return a.repo.LinkGoogleAccounts(ctx, userID, googleUID, customerIDs)
+}
+
+func (w oauthCfgWrapper) ExchangeRefresh(ctx context.Context, refresh string) (*oauth2.Token, error) {
+	t := &oauth2.Token{RefreshToken: refresh}
+	return w.cfg.TokenSource(ctx, t).Token()
 }
 
 func mustEnv(key string) string {

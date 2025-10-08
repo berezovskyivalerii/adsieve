@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,6 +26,24 @@ func pkceVerifier() string {
 func pkceChallengeS256(v string) string {
 	sum := sha256.Sum256([]byte(v))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+func decodeIDTokenSub(idToken string) (string, bool) {
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		return "", false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", false
+	}
+	var claims struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil || claims.Sub == "" {
+		return "", false
+	}
+	return claims.Sub, true
 }
 
 // POST /integrations/google/connect
@@ -81,10 +100,16 @@ func (h *Handler) googleCallback(c *gin.Context) {
 		return
 	}
 
+	// Попробуем достать google_user_id из id_token (claim "sub")
 	var googleUserID string
-	if raw, ok := tok.Extra("id_token").(string); ok {
-		googleUserID = raw
-	} // разберёшь в репозитории
+	if raw, ok := tok.Extra("id_token").(string); ok && raw != "" {
+		if sub, ok := decodeIDTokenSub(raw); ok {
+			googleUserID = sub
+		} else {
+			// fallback: сохраним сырой id_token, разберём позже в репо при надобности
+			googleUserID = raw
+		}
+	}
 
 	if err := h.tokenVault.SaveGoogleRefreshToken(c, userID, googleUserID, tok.RefreshToken, "adwords"); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "save refresh failed"})
@@ -104,18 +129,11 @@ func (h *Handler) googleAccounts(c *gin.Context) {
 
 	ids, err := h.gadsClient.ListAccessibleCustomers(c, userID)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "list failed"})
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
-
-	type item struct {
-		CustomerID string `json:"customer_id"`
-	}
-	out := make([]item, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, item{CustomerID: id})
-	}
-	c.JSON(http.StatusOK, gin.H{"accounts": out})
+	// Минимальный формат (как обсуждали): { "customer_ids": [...] }
+	c.JSON(http.StatusOK, gin.H{"customer_ids": ids})
 }
 
 // POST /integrations/google/link-accounts
@@ -141,4 +159,32 @@ func (h *Handler) googleLinkAccounts(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "linked"})
+}
+
+// POST /integrations/google/sync
+// Тело: { "customer_id": "123-456-7890", "date": "YYYY-MM-DD" }
+type syncReq struct {
+	CustomerID string `json:"customer_id"`
+	Date       string `json:"date"` // UTC день
+}
+
+func (h *Handler) googleSyncCosts(c *gin.Context) {
+	uidVal, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no user"})
+		return
+	}
+	userID := uidVal.(int64)
+
+	var req syncReq
+	if err := c.ShouldBindJSON(&req); err != nil || req.CustomerID == "" || req.Date == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id and date are required"})
+		return
+	}
+
+	if err := h.googleSync.SyncCostsForDate(c.Request.Context(), userID, req.CustomerID, req.Date); err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

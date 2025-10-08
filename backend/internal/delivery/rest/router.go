@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context" // +++
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,11 @@ import (
 	mw "github.com/berezovskyivalerii/adsieve/internal/delivery/rest/middleware"
 	"github.com/berezovskyivalerii/adsieve/internal/domain/ports"
 )
+
+// +++ Узкий контракт сервиса синка, чтобы не тянуть лишние зависимости сюда
+type GoogleSync interface {
+	SyncCostsForDate(ctx context.Context, userID int64, customerID, date string) error
+}
 
 type Handler struct {
 	userSvc    ports.User
@@ -24,6 +30,8 @@ type Handler struct {
 	tokenVault  ports.TokenVault
 	gadsClient  ports.GoogleAdsClient
 	oauthCfg    *oauth2.Config
+
+	googleSync GoogleSync // +++
 }
 
 func NewHandler(
@@ -36,6 +44,7 @@ func NewHandler(
 	tokenVault ports.TokenVault,
 	gadsClient ports.GoogleAdsClient,
 	oauthCfg *oauth2.Config,
+	googleSync GoogleSync, // +++
 ) *Handler {
 	return &Handler{
 		userSvc:    userSvc,
@@ -48,6 +57,8 @@ func NewHandler(
 		tokenVault:  tokenVault,
 		gadsClient:  gadsClient,
 		oauthCfg:    oauthCfg,
+
+		googleSync: googleSync, // +++
 	}
 }
 
@@ -85,6 +96,7 @@ func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	// private
 	r.GET("/integrations/google/accounts", jwtAuth.Middleware(), h.googleAccounts)
 	r.POST("/integrations/google/link-accounts", jwtAuth.Middleware(), h.googleLinkAccounts)
+	r.POST("/integrations/google/sync", jwtAuth.Middleware(), h.googleSyncCosts) // +++
 
 	return r
 }

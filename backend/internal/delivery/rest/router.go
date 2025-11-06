@@ -1,9 +1,10 @@
 package rest
 
 import (
-	"context" // +++
+	"context"
 	"net/http"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -13,7 +14,6 @@ import (
 	"github.com/berezovskyivalerii/adsieve/internal/domain/ports"
 )
 
-// +++ Узкий контракт сервиса синка, чтобы не тянуть лишние зависимости сюда
 type GoogleSync interface {
 	SyncCostsForDate(ctx context.Context, userID int64, customerID, date string) error
 }
@@ -64,6 +64,13 @@ func NewHandler(
 
 func (h *Handler) Router(jwtSecret []byte) http.Handler {
 	r := gin.New()
+	config := cors.DefaultConfig()
+    config.AllowOrigins = []string{"http://localhost:5173"} 
+    config.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+    config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+    config.AllowCredentials = true
+
+	r.Use(cors.New(config))
 	r.Use(gin.Logger(), gin.Recovery())
 	jwtAuth := mw.NewJWTAuth(jwtSecret)
 

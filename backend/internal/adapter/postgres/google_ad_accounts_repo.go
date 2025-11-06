@@ -95,16 +95,19 @@ func (r *GoogleAdAccountsRepo) UpsertAdIfMissing(
 	ctx context.Context,
 	accountID, adID int64,
 ) error {
-	const qPlatform = `SELECT platform FROM ad_accounts WHERE account_id=$1`
+	const qPlatform = `SELECT platform FROM ad_accounts WHERE account_id = $1`
 	var platform string
 	if err := r.db.QueryRowContext(ctx, qPlatform, accountID).Scan(&platform); err != nil {
 		return fmt.Errorf("lookup platform by account_id: %w", err)
 	}
+
 	const q = `
 INSERT INTO ads (ad_id, account_id, name, status, platform)
-VALUES ($1, $2, CONCAT('ad-', $1::text), 'active', $3)
+VALUES ($1, $2, $3, 'active', $4)
 ON CONFLICT (ad_id) DO NOTHING`
-	if _, err := r.db.ExecContext(ctx, q, adID, accountID, platform); err != nil {
+
+	name := fmt.Sprintf("ad-%d", adID) // формируем имя отдельно, без приведения типов в SQL
+	if _, err := r.db.ExecContext(ctx, q, adID, accountID, name, platform); err != nil {
 		return fmt.Errorf("upsert ad if missing: %w", err)
 	}
 	return nil
@@ -120,7 +123,11 @@ func (r *GoogleAdAccountsRepo) UpsertSpend(
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() { if err != nil { _ = tx.Rollback() } }()
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
 
 	const upsertInsights = `
 INSERT INTO ads_insights (ad_id, insight_date, spend)

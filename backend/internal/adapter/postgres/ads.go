@@ -17,8 +17,6 @@ type AdsRepo struct {
 
 func NewAdsRepo(db *sql.DB) *AdsRepo { return &AdsRepo{db: db} }
 
-// ListByUser возвращает объявления пользователя с учётом фильтров/пагинации.
-// Возвращает: items []entity.Ad и total (общее кол-во с учётом фильтров, без пагинации).
 func (r *AdsRepo) ListByUser(ctx context.Context, userID int64, f entity.AdsFilter) ([]entity.Ad, int, error) {
 	orderBy := orderClause(f.Sort)
 
